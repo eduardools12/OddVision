@@ -1,0 +1,14 @@
+# Ambiente virtual (D03)
+.venv/
+
+# Dados brutos e manifests: imutáveis e fora do Git (D04)
+data/
+
+# Credenciais locais do banco (D11) — o modelo versionado é database.example.toml
+config/database.toml
+
+# Artefatos do Python, pytest e Jupyter
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ipynb_checkpoints/
