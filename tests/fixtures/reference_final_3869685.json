@@ -1,0 +1,60 @@
+{
+ "_descricao": "Valores de referência da final da Copa 2022 (Argentina 3-3 França). Copiados à mão da seção 13 de notebooks/01_exploracao.ipynb, que calcula as métricas em Python puro, independente do pipeline. As views de analytics (Passo 10) devem reproduzir estes números. Regras: docs/metrics.md.",
+ "match_id": 3869685,
+ "source_repo": "hudl/open-data",
+ "source_commit": "4b73468fc5b0f1950f9f66fada70ad3a4f9327cb",
+ "eventos_na_partida": 4407,
+ "placar_oficial": {"Argentina": 3, "France": 3},
+ "gols_por_jogador": {
+  "Lionel Andrés Messi Cuccittini": 2,
+  "Ángel Fabián Di María Hernández": 1,
+  "Kylian Mbappé Lottin": 3
+ },
+ "times": {
+  "Argentina": {
+   "team_id": 779,
+   "gols": 3,
+   "gols_contra_a_favor": 0,
+   "penaltis_disputa": 4,
+   "finalizacoes": 20,
+   "finalizacoes_no_alvo": 10,
+   "xg": 2.7583,
+   "npxg": 1.9748,
+   "finalizacoes_sem_penalti": 19,
+   "npxg_por_finalizacao_sem_penalti": 0.1039,
+   "passes_tentados": 661,
+   "passes_completos": 538,
+   "pct_acerto_passes": 81.4,
+   "passes_progressivos": 56,
+   "conducoes_progressivas": 30,
+   "passes_para_area": 7,
+   "xg_acumulado_final": 2.7583,
+   "degraus_de_penalti_minute": [22]
+  },
+  "France": {
+   "team_id": 771,
+   "gols": 3,
+   "gols_contra_a_favor": 0,
+   "penaltis_disputa": 2,
+   "finalizacoes": 10,
+   "finalizacoes_no_alvo": 5,
+   "xg": 2.2726,
+   "npxg": 0.7056,
+   "finalizacoes_sem_penalti": 8,
+   "npxg_por_finalizacao_sem_penalti": 0.0882,
+   "passes_tentados": 544,
+   "passes_completos": 414,
+   "pct_acerto_passes": 76.1,
+   "passes_progressivos": 39,
+   "conducoes_progressivas": 31,
+   "passes_para_area": 3,
+   "xg_acumulado_final": 2.2726,
+   "degraus_de_penalti_minute": [79, 117]
+  }
+ },
+ "_notas": {
+  "arredondamento": "xg, npxg e a taxa arredondados para 4 casas; percentual para 1 casa. Comparar com tolerância de 0,0001 (0,1 no percentual).",
+  "degraus_de_penalti_minute": "Valores do campo 'minute' da fonte (minuto decorrido, começa em 0). Rótulo de futebol = minute + 1: 23', 80' e 118'.",
+  "periodo_5": "penaltis_disputa é informação complementar (M1). Todas as outras métricas excluem o período 5."
+ }
+}

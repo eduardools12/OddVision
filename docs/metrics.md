@@ -53,7 +53,7 @@ Os exemplos usam a **final da Copa 2022**, Argentina 3–3 França (`match_id = 
 
 - Foram calculados em 2026-09-29 por um **script exploratório independente** (Python puro, fora do pipeline), a partir do branch `master` da fonte.
 - Servem como **valores de referência**: as views de `analytics` precisam reproduzi-los.
-- **Pendência:** reconfirmar os valores quando o commit da fonte for fixado (passo 3 do roadmap).
+- **Reconfirmados no Passo 2** (2026-09-29) no commit fixado `4b73468f` (`hudl/open-data`), com os mesmos resultados. Estão congelados em `tests/fixtures/reference_final_3869685.json` e a evidência está em `notebooks/01_exploracao.ipynb`, seção 13.
 
 ---
 
@@ -225,13 +225,13 @@ Os exemplos usam a **final da Copa 2022**, Argentina 3–3 França (`match_id = 
 | **Classe** | 🟨 **CÁLCULO** (soma acumulada do `statsbomb_xg` da fonte). A construção do eixo de tempo é uma **decisão de apresentação** documentada abaixo |
 | **Definição** | Para cada time, a soma acumulada do xG das finalizações ao longo da partida, na forma de uma função em degraus |
 | **Origem dos dados** | `core.shots` (`statsbomb_xg`) + `core.events` (`period`, `idx`, `ts_in_period`, `team_id`); eventos `Half End` para a duração de cada período |
-| **Fórmula** | `xg_acumulado(t) = Σ statsbomb_xg` das finalizações do time com `(period, idx) ≤ t`. **Eixo de tempo:** `tempo_decorrido = Σ duração real dos períodos anteriores + ts_in_period`. A duração real de cada período vem do `ts_in_period` do seu `Half End`. **Rótulo:** estilo futebol, por exemplo "45+14" |
+| **Fórmula** | `xg_acumulado(t) = Σ statsbomb_xg` das finalizações do time com `(period, idx) ≤ t`. **Eixo de tempo:** `tempo_decorrido = Σ duração real dos períodos anteriores + ts_in_period`. A duração real de cada período vem do `ts_in_period` do seu `Half End` (há 2 por período, um por time, com o mesmo horário). **Rótulo:** estilo futebol, por exemplo "45+14". O campo `minute` da fonte é o minuto **decorrido** (começa em 0), então o rótulo é `minute + 1`: `minute = 22` vira "23'" |
 | **Eventos incluídos** | `Shot` em tempo válido, **incluindo pênaltis** (usa xG, não npxG). Cada pênalti aparece como um degrau de 0,7835 |
 | **Eventos excluídos** | Período 5 |
 | **Valores ausentes** | Herda a regra da M3. Partida sem finalizações de um time → a série desse time é constante em 0 |
 | **Unidade** | Gols esperados acumulados (decimal, 2 casas) ao longo do tempo decorrido (segundos, rotulados em minutos) |
 | **Limitações** | Mostra **criação de chances**, não domínio nem posse. É sensível a pênaltis. O eixo por tempo real torna partidas com acréscimos longos visualmente mais extensas, o que é intencional |
-| **Exemplos** | Final: a curva termina em Argentina **2,76** e França **2,27**, com degraus de pênalti aos 23' (Argentina) e aos 80' e 118' (França) |
+| **Exemplos** | Final: a curva termina em Argentina **2,76** e França **2,27**, com degraus de pênalti aos 23' (Argentina) e aos 80' e 118' (França), que correspondem a `minute` = 22, 79 e 117 na fonte |
 | **Critério de validação** | (1) O último ponto de cada time é igual ao `xg` da M3. (2) Série monotonicamente não decrescente. (3) Sem sobreposição temporal entre períodos: teste com uma partida cujo 1º tempo passou do minuto 45 (na Copa, o 1º tempo chegou ao minuto 59). (4) Ordenação por `(period, idx)`, conferida em teste |
 
 ---

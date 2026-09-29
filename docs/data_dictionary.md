@@ -26,7 +26,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
    - **Nunca** pode ser lido pelo schema `analytics` (garantido por teste).
    - Quando um campo do `extra` passar a ser usado em uma métrica, ele vira coluna tipada, com documentação e migração.
 6. **`match_id` nos eventos e escalações:** os JSONs de `events` e `lineups` **não contêm `match_id`**. Ele vem do nome do arquivo (`events/3869685.json`) e é protegido pelo check C08.
-7. **Campos marcados ⚠️ "a confirmar":** caminho da fonte ainda não verificado nos dados reais. Serão confirmados no passo 2 (exploração guiada) antes do DDL.
+7. **Caminhos confirmados (✅):** os 7 caminhos que estavam marcados ⚠️ foram confirmados no Passo 2, nos dados reais do commit fixado `4b73468f`. A evidência está em [`data_notes.md`](data_notes.md) §3 e em `notebooks/01_exploracao.ipynb`.
 
 ### 0.3 Schemas
 
@@ -92,6 +92,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 - **PK:** `player_id`
 - **Carga:** upsert.
 - **Qualidade:** o mesmo `player_id` com nomes diferentes entre arquivos gera o aviso C11.
+- **Achado A2 (Passo 2):** na Copa 2022, 4 jogadores têm grafias diferentes entre arquivos (por exemplo, "Phil Foden" / "Philip Foden"). A regra determinística para escolher o nome gravado será decidida no Passo 6. A proposta é o nome mais frequente entre os arquivos.
 
 ---
 
@@ -114,7 +115,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 | `match_week` | `SMALLINT` | SIM | `match_week` | 🟦 | Rodada |
 | `competition_stage` | `TEXT` | SIM | `competition_stage.name` | 🟦 | Fase ("Group Stage", "Final"…) |
 | `stadium_name` | `TEXT` | SIM | `stadium.name` | 🟦 | Estádio |
-| `referee_name` | `TEXT` | SIM | `referee.name` | 🟦 | Árbitro |
+| `referee_name` | `TEXT` | SIM | `referee.name` | 🟦 | Árbitro. A chave `referee` **não existe** em 1 partida (achado A3): a transformação deve tolerar chave ausente |
 | `match_status` | `TEXT` | SIM | `match_status` | 🟦 | Status de disponibilidade na fonte |
 | `data_version` | `TEXT` | SIM | `metadata.data_version` | 🟦 | Versão do formato de dados |
 | `shot_fidelity_version` | `TEXT` | SIM | `metadata.shot_fidelity_version` | 🟦 | Versão do modelo e precisão de finalizações (afeta o xG) |
@@ -140,9 +141,9 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 | `team_id` | `INTEGER` | NÃO | `[i].team_id` | 🟦 | Time do jogador na partida |
 | `player_id` | `INTEGER` | NÃO | `lineup[j].player_id` | 🟦 | Jogador |
 | `jersey_number` | `SMALLINT` | SIM | `lineup[j].jersey_number` | 🟦 | Número da camisa |
-| `is_starter` | `BOOLEAN` | NÃO | `lineup[j].positions[0].start_reason = 'Starting XI'` ⚠️ a confirmar | 🟩 | Titular |
+| `is_starter` | `BOOLEAN` | NÃO | `lineup[j].positions[0].start_reason = 'Starting XI'` ✅ | 🟩 | Titular. Coincide com o evento `Starting XI` em 128 de 128 times; independe da ordenação |
 | `played` | `BOOLEAN` | NÃO | `len(lineup[j].positions) > 0` | 🟩 | Entrou em campo. Na final, 15 relacionados não entraram |
-| `first_position` | `TEXT` | SIM | `lineup[j].positions[0].position` | 🟦 | Primeira posição ocupada (nula se não entrou) |
+| `first_position` | `TEXT` | SIM | `positions[0].position`, **após ordenação estável** por (`from_period`, `from`) | 🟦 | Primeira posição ocupada (nula se não entrou). A fonte nem sempre ordena `positions` (achado A1) |
 | `extra` | `JSONB` | NÃO (`'{}'`) | demais chaves | 🟦 | `positions` (intervalos completos: from/to, período, motivos), `cards` |
 
 **Chaves e restrições:**
@@ -180,7 +181,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 | `play_pattern` | `TEXT` | NÃO | `play_pattern.name` | 🟦 | Padrão de jogo ("Regular Play", "From Corner"…) |
 | `x` | `DOUBLE PRECISION` | SIM | `location[0]` | 🟦 | Coordenada x (0–120), do ponto de vista de quem executa |
 | `y` | `DOUBLE PRECISION` | SIM | `location[1]` | 🟦 | Coordenada y (0–80), com origem no canto superior |
-| `duration` | `DOUBLE PRECISION` | SIM | `duration` | 🟦 | Duração do evento em segundos |
+| `duration` | `DOUBLE PRECISION` | SIM | `duration` | 🟦 | Duração do evento em segundos. Ausente em todos os `Ball Receipt*` e em 1 `Pass` (achado A4) |
 | `under_pressure` | `BOOLEAN` | NÃO (`false`) | `under_pressure` (presente só se verdadeiro) | 🟩 | Ação sob pressão |
 | `extra` | `JSONB` | NÃO (`'{}'`) | demais chaves | 🟦 | `type.id`, `related_events`, `tactics`, `counterpress`, `off_camera`, `out` e o **objeto específico** de tipos sem tabela própria (`duel`, `pressure`, `goalkeeper`, `clearance`, `dribble`, `interception`, `ball_receipt` etc.) |
 
@@ -207,7 +208,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 | `statsbomb_xg` | `DOUBLE PRECISION` | NÃO | `shot.statsbomb_xg` | 🟦 | **xG do modelo do StatsBomb.** O OddVision não calcula xG |
 | `end_x` | `DOUBLE PRECISION` | NÃO | `shot.end_location[0]` | 🟦 | Destino x |
 | `end_y` | `DOUBLE PRECISION` | NÃO | `shot.end_location[1]` | 🟦 | Destino y |
-| `end_z` | `DOUBLE PRECISION` | SIM | `shot.end_location[2]` (opcional) ⚠️ a confirmar | 🟦 | Altura no plano do gol |
+| `end_z` | `DOUBLE PRECISION` | SIM | `shot.end_location[2]` ✅ (opcional) | 🟦 | Altura no plano do gol. **Nula exatamente quando `outcome` ∈ {`Blocked`, `Wayward`}** (464 de 1.494 na Copa) |
 | `outcome` | `TEXT` | NÃO | `shot.outcome.name` | 🟦 | Blocked, Goal, Off T, Post, Saved, Saved Off Target, Saved to Post, Wayward |
 | `shot_type` | `TEXT` | NÃO | `shot.type.name` | 🟦 | Open Play, Free Kick, Penalty, Corner |
 | `body_part` | `TEXT` | SIM | `shot.body_part.name` | 🟦 | Pé direito/esquerdo, cabeça… |
@@ -242,7 +243,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 | `is_complete` | `BOOLEAN` | NÃO | ausência de `pass.outcome` | 🟩 | Passe completo |
 | `is_cross` | `BOOLEAN` | NÃO (`false`) | `pass.cross` | 🟩 | Cruzamento |
 | `is_switch` | `BOOLEAN` | NÃO (`false`) | `pass.switch` | 🟩 | Inversão de jogo |
-| `is_through_ball` | `BOOLEAN` | NÃO (`false`) | `pass.through_ball` ⚠️ a confirmar (pode ser `pass.technique.name = 'Through Ball'`) | 🟩 | Passe em profundidade |
+| `is_through_ball` | `BOOLEAN` | NÃO (`false`) | `pass.through_ball` ✅ | 🟩 | Passe em profundidade. Equivale a `pass.technique.name = 'Through Ball'` (os mesmos 254 passes na Copa) |
 | `is_shot_assist` | `BOOLEAN` | NÃO (`false`) | `pass.shot_assist` | 🟩 | Passe que gerou finalização sem gol |
 | `is_goal_assist` | `BOOLEAN` | NÃO (`false`) | `pass.goal_assist` | 🟩 | Assistência para gol |
 | `extra` | `JSONB` | NÃO (`'{}'`) | demais chaves de `pass` | 🟦 | `technique`, `assisted_shot_id`, `aerial_won`, `deflected`, `inswinging`, `outswinging`, `cut_back`, `miscommunication`, `no_touch`, `straight` etc. |
@@ -282,7 +283,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 | Coluna | Tipo | Nulo? | Origem no JSON | Classe | Significado |
 |---|---|---|---|---|---|
 | `event_id` | `UUID` | NÃO | `id` | 🟦 | Evento de origem |
-| `card_type` | `TEXT` | NÃO | `foul_committed.card.name` ou `bad_behaviour.card.name` ⚠️ a confirmar | 🟦 | Yellow Card / Second Yellow / Red Card |
+| `card_type` | `TEXT` | NÃO | `foul_committed.card.name` ou `bad_behaviour.card.name` ✅ | 🟦 | `Yellow Card` / `Second Yellow` / `Red Card`. Não há outro caminho para `card` nos eventos; 228 cartões conciliados 1:1 com as escalações |
 
 - **PK:** `event_id`
 - **FK:** `event_id` → `events` (`ON DELETE CASCADE`)
@@ -300,8 +301,8 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 | Coluna | Tipo | Nulo? | Origem no JSON | Classe | Significado |
 |---|---|---|---|---|---|
 | `event_id` | `UUID` | NÃO | `id` | 🟦 | Evento. O jogador que **sai** é `core.events.player_id` |
-| `player_on_id` | `INTEGER` | NÃO | `substitution.replacement.id` ⚠️ a confirmar | 🟦 | Jogador que **entra** |
-| `reason` | `TEXT` | SIM | `substitution.outcome.name` ⚠️ a confirmar | 🟦 | Tactical / Injury… |
+| `player_on_id` | `INTEGER` | NÃO | `substitution.replacement.id` ✅ | 🟦 | Jogador que **entra** |
+| `reason` | `TEXT` | SIM | `substitution.outcome.name` ✅ | 🟦 | Domínio na Copa: `Tactical` / `Injury` |
 
 - **PK:** `event_id`
 - **FK:** `event_id` → `events` (`ON DELETE CASCADE`); `player_on_id` → `players`
