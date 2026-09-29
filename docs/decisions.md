@@ -24,6 +24,8 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D16 | Regra de contrato por etapa (entrada, saída, validação) | Aceita |
 | D17 | Nenhuma ação automática sobre o PostgreSQL existente | Aceita |
 | D18 | Commits manuais pelo autor | Aceita |
+| D19 | `pyproject.toml` + layout `src/` + instalação editável | Aceita |
+| D20 | Versões fixadas das dependências diretas | Aceita |
 
 ---
 
@@ -216,3 +218,42 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 
 - **Decisão:** o assistente nunca faz commits. Cada passo do roadmap termina com uma sugestão de mensagem de commit, que o autor revisa e executa.
 - **Consequências:** o histórico do Git reflete as decisões do autor.
+
+## D19 — `pyproject.toml` + layout `src/` + instalação editável
+
+- **Contexto:** a spec previa apenas `requirements*.txt`. Mas o pipeline será executado como `python -m oddvision.pipeline`, e os testes e o app precisam importar `oddvision` de qualquer pasta. Com o layout `src/`, isso só funciona com o pacote instalado.
+- **Decisão:**
+  - `pyproject.toml` com `[build-system]` (setuptools ≥ 64, o mínimo para instalação editável via PEP 660), `[project]` (nome, versão, `requires-python = ">=3.13,<3.14"`) e a configuração do pytest em `[tool.pytest]`.
+  - O código fica em `src/oddvision/` e é instalado com `pip install -e .`.
+  - `dependencies = []` no `pyproject.toml`: as versões ficam **só** em `requirements*.txt`, que é a fonte única.
+- **Alternativas:**
+  - *`PYTHONPATH=src`*: frágil, porque depende de cada terminal estar configurado.
+  - *Código na raiz* (sem `src/`): os testes passariam importando o código da pasta atual mesmo sem instalação, escondendo erros de empacotamento.
+  - *Declarar as dependências também no `pyproject.toml`*: duplicaria as versões em dois lugares.
+- **Consequências:**
+  - O teste *smoke* verifica que `oddvision` é importado de `src/`.
+  - Instalar em Python 3.14 falha de propósito, por causa do `requires-python`.
+  - Montar o ambiente exige dois comandos: `pip install -r requirements-dev.txt` e `pip install -e .`.
+- **Não é uma dependência nova:** o setuptools é usado apenas na construção do pacote. O pip o obtém num ambiente isolado.
+
+## D20 — Versões fixadas das dependências diretas
+
+- **Contexto:** reprodutibilidade (spec, seção 13). As versões foram verificadas em 2026-09-29 no PyPI (existência de *wheel* `cp313-win_amd64` ou `py3-none-any`) e no Context7.
+- **Decisão:** fixar com `==` somente as dependências **diretas**:
+
+| Pacote | Versão | Critério |
+|---|---|---|
+| pandas | 3.0.6 | Série 3.x estável; *wheel* cp313 |
+| psycopg[binary] | 3.3.6 | O extra `[binary]` embute a libpq (18.0.4): não exige PostgreSQL instalado para instalar o driver |
+| SQLAlchemy | 2.0.54 | A série **2.1** foi lançada em 24/09/2026 e recebeu um *patch* no dia seguinte. A 2.0 é madura e cobre o uso previsto (Core + `postgresql+psycopg`) |
+| streamlit | 1.64.0 | Versão atual |
+| mplsoccer | 1.8.1 | Versão atual |
+| pytest (dev) | 9.1.1 | Versão atual; configuração TOML nativa |
+| ipykernel (dev) | 7.3.0 | A 7.4.0 foi publicada em 2026-09-29, o mesmo dia da escolha. Evitamos versões com horas de vida |
+
+- **Regra de escolha:** usar a versão estável mais recente, **exceto** quando a série ou versão tiver menos de cerca de uma semana. Nesse caso, usar a anterior.
+- **Alternativas:** fixar também as dependências transitivas (`pip freeze` completo) ou usar um *lock file*. Fica para depois do MVP, se a reprodutibilidade exigir.
+- **Consequências:**
+  - As dependências transitivas (numpy, scipy, matplotlib, pyarrow, requests etc.) são resolvidas pelo pip e podem variar entre instalações.
+  - O `requests` chega como dependência transitiva do `mplsoccer`, mas **não é usado** pelo OddVision: a ingestão usa `urllib` (spec, seção 13).
+  - O teste *smoke* confere as versões diretas.

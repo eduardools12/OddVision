@@ -1,0 +1,8 @@
+# Dependências de execução do OddVision (pipeline + app).
+# Somente dependências diretas, com versão fixada (==). Veja docs/decisions.md (D19, D20).
+
+pandas==3.0.6            # normalização JSON -> DataFrame (spec, seção 13)
+psycopg[binary]==3.3.6   # driver PostgreSQL 3.x; [binary] traz a libpq compilada (D10)
+SQLAlchemy==2.0.54       # somente Core: conexão para pandas e Streamlit (D10)
+streamlit==1.64.0        # camada de apresentação
+mplsoccer==1.8.1         # desenho do campo no sistema de coordenadas do StatsBomb

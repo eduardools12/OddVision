@@ -1,0 +1,5 @@
+# Dependências de desenvolvimento: tudo de execução + ferramentas que não vão para produção.
+-r requirements.txt
+
+pytest==9.1.1            # testes unitários, de integração e de referência
+ipykernel==7.3.0         # kernel do notebook de exploração no VS Code (Passo 2)

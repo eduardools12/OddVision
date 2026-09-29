@@ -1,0 +1,29 @@
+# Metadados do pacote e configuração das ferramentas (D19).
+# As versões das dependências ficam em requirements*.txt (fonte única), não aqui.
+
+[build-system]
+# setuptools >= 64 é o mínimo com suporte a instalação editável via pyproject (PEP 660).
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "oddvision"
+version = "0.1.0"
+description = "Pipeline e análise de partidas de futebol com StatsBomb Open Data (Copa do Mundo 2022)."
+readme = "README.md"
+# D03: o projeto roda em Python 3.13. O limite superior impede instalar por engano em 3.14.
+requires-python = ">=3.13,<3.14"
+# Vazio de propósito: o ambiente é montado com requirements.txt / requirements-dev.txt.
+dependencies = []
+
+[tool.setuptools.packages.find]
+# Layout src/: o código importável fica só em src/oddvision.
+where = ["src"]
+
+[tool.pytest]
+minversion = "9.0"
+testpaths = ["tests"]
+# -ra: resumo de testes pulados/falhos no final.
+# importlib: modo recomendado pelo pytest para projetos novos; permite arquivos de
+# teste com o mesmo nome em pastas diferentes (tests/unit e tests/integration).
+addopts = ["-ra", "--import-mode=importlib"]
