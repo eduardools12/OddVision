@@ -1,0 +1,21 @@
+# O que o OddVision ingere e de qual versão da fonte (D04, D11).
+# Escolhas confirmadas no Passo 2: veja docs/data_notes.md.
+
+[source]
+# O repositório foi transferido de statsbomb/open-data para hudl/open-data (o nome antigo redireciona).
+repo = "hudl/open-data"
+# Commit FIXADO (topo do master em 2026-09-29, commit de 2026-09-07). Nunca use um nome de branch aqui:
+# o conteúdo de "master" muda com o tempo e os resultados deixariam de ser reprodutíveis.
+commit = "4b73468fc5b0f1950f9f66fada70ad3a4f9327cb"
+
+[competition]
+# Copa do Mundo 2022 (64 partidas).
+competition_id = 43
+season_id = 106
+
+[load]
+# Partidas-sentinela carregadas no core nos Passos 6 a 10 (a ingestão baixa as 64):
+#   3869685  Argentina x França (final): disputa de pênaltis e prorrogação
+#   3857276  Canadá x Marrocos: gol contra
+#   3857271  Inglaterra x Irã: 1º tempo de 59:03, o mais longo da Copa
+match_ids = [3869685, 3857276, 3857271]

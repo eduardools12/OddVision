@@ -26,6 +26,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D18 | Commits manuais pelo autor | Aceita |
 | D19 | `pyproject.toml` + layout `src/` + instalação editável | Aceita |
 | D20 | Versões fixadas das dependências diretas | Aceita |
+| D21 | Política de imutabilidade da ingestão bruta | Aceita |
 
 ---
 
@@ -257,3 +258,24 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
   - As dependências transitivas (numpy, scipy, matplotlib, pyarrow, requests etc.) são resolvidas pelo pip e podem variar entre instalações.
   - O `requests` chega como dependência transitiva do `mplsoccer`, mas **não é usado** pelo OddVision: a ingestão usa `urllib` (spec, seção 13).
   - O teste *smoke* confere as versões diretas.
+
+## D21 — Política de imutabilidade da ingestão bruta
+
+- **Contexto:** o D04 diz que os dados brutos são imutáveis e fixados em um commit. A ingestão (Passo 3) precisa transformar isso em regras verificáveis: o que fazer quando disco, manifest e fonte discordam.
+- **Decisão:**
+  - **O manifest é a prova.** Cada arquivo baixado tem `sha256`, tamanho, `record_count`, URL e commit registrados em `data/manifests/statsbomb_manifest.csv`.
+  - **Arquivo existente:** só é aceito se constar no manifest **e** o `sha256` do disco conferir. Arquivo alterado, ou arquivo sem registro no manifest = `IntegrityError`, sem alterar nada.
+  - **Arquivo ausente com registro no manifest:** é baixado de novo, mas o conteúdo novo precisa ter o **mesmo** `sha256`. Conteúdo diferente = erro, e o arquivo novo não é gravado.
+  - **Commit:** se o manifest registra um commit diferente do configurado = erro. Trocar a versão da fonte é uma decisão explícita e exige outra pasta de dados.
+  - **Só entra JSON válido:** o conteúdo precisa ser um array JSON. Isso é validado **antes** de gravar.
+  - **Gravação atômica** (`.part` + renomear) e **manifest regravado a cada arquivo**: uma execução interrompida é retomada de onde parou.
+  - **O commit precisa ser um SHA completo** (40 caracteres hexadecimais). Um nome de branch é rejeitado pela configuração, porque não fixa nada.
+  - **O repositório canônico é `hudl/open-data`** (o antigo `statsbomb/open-data` foi transferido e ainda redireciona). Os textos do D04 e da spec que citam o nome antigo continuam válidos, porque as duas URLs devolvem os mesmos bytes.
+- **Alternativas:**
+  - *Sobrescrever silenciosamente* o arquivo alterado: viola D04.
+  - *Adotar como válido* um arquivo sem registro no manifest: não há como provar que é o original.
+  - *Verificar contra o SHA de blob do Git* (API do GitHub): prova mais forte, mas exige uma API a mais; adiado.
+- **Consequências:**
+  - Um erro de integridade nunca apaga nem sobrescreve nada. O autor decide o que fazer (restaurar ou remover o arquivo manualmente).
+  - Se o manifest for perdido, a ingestão para em vez de "adotar" os arquivos. É intencional.
+  - A ingestão é sequencial: os 130 arquivos (192 MB) levam cerca de 1min40 e a 2ª execução leva cerca de 2 segundos.
