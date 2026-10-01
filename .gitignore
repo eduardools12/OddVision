@@ -16,3 +16,6 @@ __pycache__/
 
 # Configuração local do preview (opcional, fora do Git)
 .claude/
+
+# Secrets do Streamlit (a URL do banco na nuvem): nunca no Git
+.streamlit/secrets.toml

@@ -96,6 +96,10 @@ CREATE DATABASE oddvision_verify OWNER oddvision_app;
 
 A opção `--database` só aceita o banco principal ou um nome terminado em `_verify` (D40). Na verificação feita, o `core` ficou idêntico ao do banco principal e as métricas só diferiram em ruído de ponto flutuante (no máximo 1,3 × 10⁻¹⁵ nas somas de xG; veja D39).
 
+## Publicar na nuvem
+
+O app aceita a conexão por uma URL (`ODDVISION_DATABASE_URL`, em variável de ambiente ou nos *secrets* do Streamlit), abre toda consulta em transação somente leitura e traz o script de uma role que só lê `analytics`. O passo a passo (Neon + Streamlit Community Cloud) está em [`docs/deploy.md`](docs/deploy.md).
+
 ## Limitações e viés da amostra
 
 - **Uma competição só**: 64 partidas de seleções, masculinas, de um torneio curto. Cada seleção jogou de 3 a 7 partidas, e as que avançaram jogam contra adversários diferentes de quem caiu na primeira fase. Os números por partida não representam o futebol de clubes nem uma temporada.
@@ -115,7 +119,8 @@ A opção `--database` só aceita o banco principal ou um nome terminado em `_ve
 | [Métricas](docs/metrics.md) | Metodologia das 8 métricas e a origem de cada uma (fonte vs OddVision) |
 | [Dicionário de dados](docs/data_dictionary.md) | Tabelas, colunas e origem no JSON, e as views de `analytics` |
 | [Notas dos dados](docs/data_notes.md) | O que a exploração dos dados reais encontrou |
-| [Decisões](docs/decisions.md) | Registro das decisões arquiteturais e metodológicas (D01 a D40) |
+| [Publicação](docs/deploy.md) | Como publicar o app na nuvem (banco gratuito + Streamlit Community Cloud) |
+| [Decisões](docs/decisions.md) | Registro das decisões arquiteturais e metodológicas (D01 a D41) |
 
 ## Créditos dos dados
 

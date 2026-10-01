@@ -7,11 +7,15 @@ As funções recebem uma conexão SQLAlchemy e devolvem DataFrames (ou um dicion
 
 from __future__ import annotations
 
+import os
+from collections.abc import Iterator
+from contextlib import contextmanager
+
 import pandas as pd
-from sqlalchemy import Connection, text
+from sqlalchemy import Connection, Engine, text
 
 from oddvision.config import ConfigError, PROJECT_ROOT, database_config_path
-from oddvision.db import load_database_config, make_engine
+from oddvision.db import DATABASE_URL_ENV, engine_from_url, load_database_config, make_engine
 
 QUERIES = {
     "list_matches": "SELECT * FROM analytics.match_summary ORDER BY match_date, match_id",
@@ -28,13 +32,31 @@ QUERIES = {
 }
 
 
-def open_engine():
-    """Engine do banco principal (`databases.main`). Levanta ConfigError se `config/database.toml` não existir."""
+def open_engine(url: str | None = None) -> Engine:
+    """Engine do banco da aplicação.
+
+    Ordem: a URL passada (secret do Streamlit), a variável de ambiente `ODDVISION_DATABASE_URL` e, por último, o
+    `config/database.toml` local (banco principal). Levanta ConfigError se nenhuma das duas existir.
+    """
+    url = url or os.environ.get(DATABASE_URL_ENV)
+    if url:
+        return engine_from_url(url)
     path = database_config_path(PROJECT_ROOT)
     if not path.is_file():
-        raise ConfigError(f"arquivo de configuração do banco não encontrado: {path} (copie config/database.example.toml)")
+        raise ConfigError(
+            f"nenhuma conexão com o banco configurada: defina {DATABASE_URL_ENV} (variável de ambiente ou secret do Streamlit) "
+            f"ou crie {path} a partir de config/database.example.toml"
+        )
     config = load_database_config(path)
     return make_engine(config, config.main_db)
+
+
+@contextmanager
+def read_only_connection(engine: Engine) -> Iterator[Connection]:
+    """Conexão cuja transação é READ ONLY: o app lê `analytics` e o banco recusa qualquer escrita, mesmo que as credenciais
+    sejam as do dono. (Em produção, use também a role só de leitura: sql/deploy/reader_role.sql.)"""
+    with engine.connect() as conn:
+        yield conn.execution_options(postgresql_readonly=True)
 
 
 def _frame(conn: Connection, name: str, **params) -> pd.DataFrame:

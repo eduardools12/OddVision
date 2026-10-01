@@ -46,6 +46,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D38 | Mapas e gráficos da partida: o espelhamento do visitante só na apresentação | Aceita |
 | D39 | Carga das 64 partidas: medição, idempotência e validação | Aceita |
 | D40 | Opção `--database` do pipeline (bancos de verificação `_verify`) | Aceita |
+| D41 | Publicação na nuvem: URL do banco, leitura somente e role de leitura | Aceita |
 
 ---
 
@@ -551,4 +552,16 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 - **Decisão:** `python -m oddvision.pipeline --database NOME <comando>` escolhe o banco de trabalho. **Só são aceitos o banco principal e nomes terminados em `_verify`**; qualquer outro (`postgres`, o banco de testes, um nome com erro de digitação) é recusado **antes de conectar**, com uma mensagem que explica a regra. Sem a opção, nada muda. A opção vale para `init-db`, `load`, `check` e `all`.
 - **Alternativas:** *copiar `database.toml` com outro `main`* (mexe num arquivo com senha); *aceitar qualquer nome* (risco de rodar `init-db` no banco errado do servidor); *chave `databases.verify` no TOML* (mais configuração para um uso raro).
 - **Validação:** testes unitários da função de escolha (aceita o principal e `_verify`; recusa `postgres`, `oddvision_test`, `template1`, `verify`, `oddvision_verify2` e vazio), recusa antes de conectar em `init-db`, `load` e `check`, e um teste de ponta a ponta que mostra a tentativa de conexão no banco pedido.
+
+## D41 — Publicação na nuvem: URL do banco, leitura somente e role de leitura
+
+- **Contexto:** para compartilhar o app (Streamlit Community Cloud + PostgreSQL gratuito), a conexão não pode depender de `config/database.toml` (local, com senha) e o site publicado não pode ter poder de escrita.
+- **Decisão:**
+  - **Conexão por URL:** `ODDVISION_DATABASE_URL` (variável de ambiente ou *secret* do Streamlit) vence o `database.toml`. `engine_from_url` aceita `postgresql://`, `postgres://` e `postgresql+psycopg://`, decodifica a senha, nunca a mostra e **nunca repete a URL nas mensagens de erro**. Para bancos remotos o timeout padrão é 30 s (o banco gratuito acorda devagar), `prepare_threshold=None` (compatível com pooler/pgbouncer) e `pool_recycle=300`; um `connect_timeout` na própria URL prevalece. Sem nenhuma das duas fontes, o erro explica as duas opções.
+  - **Somente leitura em duas camadas:** toda consulta do app roda numa transação `READ ONLY` (`read_only_connection`, que usa a opção `postgresql_readonly` do SQLAlchemy; vale por transação, então funciona atrás de pooler), e `sql/deploy/reader_role.sql` cria `oddvision_reader`, que só tem `SELECT` no schema `analytics`. As views rodam com os privilégios do dono, então a role nem enxerga as tabelas-fonte; o `ALTER DEFAULT PRIVILEGES` mantém o acesso quando o `init-db` recria as views. O script fica em `sql/deploy/`, **fora** do que o pipeline aplica.
+  - **Sem instalar o pacote:** `Home.py` e `pages/1_Partida.py` colocam `src/` no caminho de importação antes de importar `oddvision`, então a nuvem só precisa de `requirements.txt` (que já tem apenas dependências de execução). O `requirements.txt` não mudou.
+  - **Segredos:** `.streamlit/secrets.toml` entrou no `.gitignore`. `docs/deploy.md` descreve o passo a passo, programa por programa.
+- **Alternativas:** *ler as credenciais em partes (host, usuário, senha)* (mais variáveis para o mesmo resultado); *instalar o pacote com `-e .` no `requirements.txt`* (depende do diretório em que o instalador roda); *recarregar tudo pelo pipeline na nuvem* (centenas de milhares de inserções pela internet; `pg_dump` e `pg_restore` são mais rápidos).
+- **Validação:** 16 testes da URL (esquemas, senha decodificada e oculta, rejeição sem repetir a URL, prioridade sobre o TOML, `connect_timeout`), 8 de arquivos de publicação (a role só tem `CREATE ROLE`, `CONNECT`, `USAGE` e `SELECT` em `analytics`, nada de escrita nem de `core`; o caminho de `src/`; o `.gitignore`), 8 de somente leitura contra o PostgreSQL (INSERT, DELETE, UPDATE, CREATE e TRUNCATE recusados com o erro `ReadOnlySqlTransaction`, dados intactos, conexão normal do pipeline não afetada), e 2 de ponta a ponta com `AppTest` (a Home lê a URL dos *secrets* e mostra 64 partidas; uma falha de conexão mostra a mensagem amigável sem vazar a senha). Uma mutação (remover a opção somente leitura) derrubou 6 testes. Conexão real por URL contra o banco local: 64 partidas lidas.
+- **Não verificado aqui:** a role `oddvision_reader` e o Neon/Streamlit Cloud reais não foram exercitados (criar roles exige superusuário, que o autor não entregou a este projeto, e as contas são do autor). O guia indica como conferir cada passo.
 

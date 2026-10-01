@@ -1,6 +1,12 @@
 """OddVision: página da partida (placar, estatísticas, xG acumulado, linha do tempo, mapas, escalações)."""
 
+import sys
+from pathlib import Path
+
 import streamlit as st
+
+# Funciona sem instalar o pacote (por exemplo no Streamlit Community Cloud): `src/` entra no caminho de importação.
+sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
 from oddvision import presentation as p
 from oddvision.app_support import safe_query

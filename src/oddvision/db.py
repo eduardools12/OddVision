@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from sqlalchemy import URL, Connection, Engine, create_engine, text
+from sqlalchemy import URL, Connection, Engine, create_engine, make_url, text
 
 from oddvision.config import ConfigError, read_toml, require
 
@@ -57,6 +57,37 @@ def make_engine(config: DatabaseConfig, database: str) -> Engine:
         url,
         connect_args={"connect_timeout": 10, "client_encoding": "utf8"},
         pool_pre_ping=True,
+    )
+
+
+# Publicação na nuvem: a conexão vem de uma única URL (variável de ambiente ou secret do Streamlit), sem arquivo local.
+DATABASE_URL_ENV = "ODDVISION_DATABASE_URL"
+# Bancos gratuitos "acordam" devagar (timeout maior) e costumam ficar atrás de um pooler (pgbouncer), que não combina com
+# prepared statements do lado do servidor (prepare_threshold=None os desliga). client_encoding igual ao do banco local.
+REMOTE_CONNECT_ARGS = {"connect_timeout": 30, "client_encoding": "utf8", "prepare_threshold": None}
+
+
+def engine_from_url(url: str) -> Engine:
+    """Engine a partir de uma URL `postgresql://usuario:senha@host/banco?sslmode=require` (também aceita `postgres://`).
+
+    A senha vem codificada na URL (ex.: `@` vira `%40`) e nunca aparece em repr nem em mensagens de erro: as mensagens
+    de erro não repetem a URL. Não conecta até o primeiro uso.
+    """
+    problem = ConfigError(f"{DATABASE_URL_ENV} inválida: use postgresql://usuario:senha@host/banco?sslmode=require")
+    try:
+        parsed = make_url((url or "").strip())
+    except Exception:  # noqa: BLE001 - a mensagem original pode conter a URL (e a senha)
+        raise problem from None
+    if parsed.get_backend_name() not in ("postgresql", "postgres") or not parsed.host or not parsed.database:
+        raise problem
+    connect_args = dict(REMOTE_CONNECT_ARGS)
+    if "connect_timeout" in parsed.query:  # o que vier na URL (?connect_timeout=5) vale mais que o padrão
+        del connect_args["connect_timeout"]
+    return create_engine(
+        parsed.set(drivername="postgresql+psycopg"),  # psycopg 3
+        connect_args=connect_args,
+        pool_pre_ping=True,
+        pool_recycle=300,  # bancos gratuitos derrubam conexões ociosas
     )
 
 

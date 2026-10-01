@@ -119,3 +119,50 @@ def test_a_match_without_events_shows_a_notice_instead_of_failing(loaded, monkey
     assert not any("Disputa de pênaltis" in s.value for s in at.subheader)    # sem eventos não há disputa para mostrar
     assert len(at.dataframe) == 2                                             # só as duas escalações
     assert len(at.get("image")) == 0
+
+
+# --------------------------------------------------------------------------- publicação: a URL do banco vem dos secrets
+
+def cloud_url(db_config):
+    from urllib.parse import quote
+
+    return (f"postgresql://{quote(db_config.user, safe='')}:{quote(db_config.password, safe='')}"
+            f"@{db_config.host}:{db_config.port}/{db_config.main_db}")
+
+
+def test_the_app_reads_the_database_url_from_the_streamlit_secrets(loaded, db_config):
+    import streamlit as st
+
+    from oddvision.db import DATABASE_URL_ENV
+
+    st.cache_resource.clear()
+    st.cache_data.clear()
+    try:
+        at = AppTest.from_file(str(APP / "Home.py"), default_timeout=60)
+        at.secrets[DATABASE_URL_ENV] = cloud_url(db_config)
+        at.run()
+        assert not at.exception
+        assert at.metric[0].value == "64"
+    finally:
+        st.cache_resource.clear()
+        st.cache_data.clear()
+
+
+def test_a_connection_failure_shows_a_friendly_message_without_leaking_the_password(loaded):
+    import streamlit as st
+
+    from oddvision.db import DATABASE_URL_ENV
+
+    st.cache_resource.clear()
+    st.cache_data.clear()
+    try:
+        at = AppTest.from_file(str(APP / "Home.py"), default_timeout=60)
+        at.secrets[DATABASE_URL_ENV] = "postgresql://leitor:SEGREDO-unico@127.0.0.1:1/banco?connect_timeout=2"   # nada escuta na porta 1
+        at.run()
+        assert not at.exception
+        assert any("Não foi possível conectar" in e.value for e in at.error)
+        everything = " ".join(str(getattr(el, "value", "")) for el in at.main)
+        assert "SEGREDO" not in everything
+    finally:
+        st.cache_resource.clear()
+        st.cache_data.clear()

@@ -10,16 +10,25 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 
 from oddvision import app_queries
 from oddvision.config import ConfigError
+from oddvision.db import DATABASE_URL_ENV
 
 ALLOWED_QUERIES = frozenset({"list_matches", "match_header", "team_stats", "lineups", "shots", "passes", "xg_timeline",
                              "match_timeline", "period_bounds"})
 CACHE_SECONDS = 600
 
 
+def _secret_url() -> str | None:
+    """URL do banco nos secrets do Streamlit (na nuvem). Sem arquivo de secrets, `st.secrets` levanta erro: vale o resto."""
+    try:
+        return st.secrets.get(DATABASE_URL_ENV)
+    except Exception:  # noqa: BLE001 - sem secrets.toml o acesso falha de formas diferentes entre versões
+        return None
+
+
 @st.cache_resource
 def engine():
     """Um engine para todas as sessões (recurso, não dado)."""
-    return app_queries.open_engine()
+    return app_queries.open_engine(_secret_url())
 
 
 @st.cache_data(ttl=CACHE_SECONDS, show_spinner=False)
@@ -28,7 +37,7 @@ def run_query(name: str, match_id: int | None = None):
     if name not in ALLOWED_QUERIES:
         raise ValueError(f"consulta desconhecida: {name}")
     function = getattr(app_queries, name)
-    with engine().connect() as conn:
+    with app_queries.read_only_connection(engine()) as conn:  # o app nunca escreve
         return function(conn) if match_id is None else function(conn, match_id)
 
 
