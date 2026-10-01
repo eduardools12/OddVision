@@ -43,6 +43,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D35 | xG acumulado (M8): `xg_timeline` com eixo de tempo real | Aceita |
 | D36 | Relógio de eventos, escalações e linha do tempo da partida; contrato da camada analytics | Aceita |
 | D37 | Aplicação Streamlit: consulta, apresentação e cache em camadas separadas | Aceita |
+| D38 | Mapas e gráficos da partida: o espelhamento do visitante só na apresentação | Aceita |
 
 ---
 
@@ -517,3 +518,17 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 - **Validação:** 22 testes unitários da apresentação, 9 testes das consultas (banco de testes), 6 testes de contrato (a aplicação nunca cita `core.`, `extra` nem escreve SQL fora de `app_queries`; selo e créditos presentes) e 6 testes de ponta a ponta com `AppTest` contra o banco principal (final 3–3 com disputa 4–2, 11 titulares por lado, 56/39 passes progressivos, 30 finalizações em jogo + 8 da disputa; as outras duas sentinelas abrem; uma partida sem eventos mostra o aviso). Conferência visual no navegador interno: placar, abas, tabela de estatísticas, escalações (Messi nº 10, Lloris nº 1) e finalizações (5' Mac Allister, defendida, xG 0,02).
 - **Outras mudanças:** `.claude/` entrou no `.gitignore` (configuração local do preview, `launch.json`) e o `README.md` ganhou o status atual e os comandos do pipeline.
 - **Consequências:** o Passo 12 acrescenta mapas e gráficos em `oddvision.viz`, e a transformação de coordenadas (espelhar o visitante) continua só na apresentação.
+
+## D38 — Mapas e gráficos da partida: o espelhamento do visitante só na apresentação
+
+- **Contexto:** o Passo 12 acrescenta o mapa de finalizações, o mapa de passes com filtros, o gráfico de xG acumulado (M8) e a linha do tempo de incidentes.
+- **Decisão:**
+  - **Coordenadas:** `analytics` continua com a perspectiva da fonte (cada time ataca para `x = 120`). O espelhamento do visitante (`120 − x`, `80 − y`) existe só em `oddvision.viz.pitch.flip_for_display` / `flip_frame` (funções puras; a entrada nunca é alterada) e só é usado no **mapa de finalizações**, em que os dois times dividem um campo. O **mapa de passes** mostra um time por vez, na perspectiva dele (ataca para a direita), sem espelhar.
+  - **Figuras:** criadas com `matplotlib.figure.Figure` solta (sem o estado global do pyplot) e desenhadas com o mplsoccer (`pitch_type='statsbomb'`, que já inverte o eixo y), então nenhuma figura fica aberta depois do uso; um teste confere que `plt.get_fignums()` não muda.
+  - **Codificação visual:** tamanho do marcador = xG; gol preenchido e sem gol vazado; pênalti quadrado; seta cinza = passe incompleto. Cores distintas para os dois times e formas diferentes para os incidentes (não dependem só de cor). Rótulos de gols próximos (menos de 6 minutos) são escalonados na vertical.
+  - **Gráfico de xG:** `xg_series` monta (minutos decorridos, xG acumulado) começando em (0, 0) e terminando no fim da partida com o total do time; as linhas tracejadas são o início de cada período (`period_bounds`, a partir de `event_clock`), então o 1º tempo longo aparece longo.
+  - **Filtros do mapa de passes** (`presentation.filter_passes`): time, jogador e tipo (tentados, completos, incompletos, progressivos (OddVision v1) e para a área), sempre sobre os passes **tentados** (M4).
+  - **Linha do tempo:** gols, gols contra, cartões e substituições, com uma lista em português (`incident_table`) num expansor. O gol contra aparece sem jogador (a fonte não informa o autor no evento).
+- **Validação:** 26 testes unitários da visualização (espelhamento ida e volta, mandante em `x ≥ 60` e visitante em `x ≤ 60`, série do xG, limites dos períodos, figuras sem vazamento, filtros) mais 3 de incidentes; nos dados reais da final: 20 + 10 finalizações com cada time do seu lado depois do espelhamento, último ponto do xG = `xg` (2,7583 e 2,2726), degraus de pênalti em 23', 80' e 118', eixo dos 4 períodos contíguo e sem sobreposição; `AppTest` das abas e de todas as combinações de filtro de passes para os dois times. Inspeção visual no navegador interno (mapa de finalizações, xG, linha do tempo e passes) e dos passes progressivos (56) e para a área (7) da Argentina: todos os progressivos começam na metade ofensiva e os 7 passes para a área cruzam a linha da área (o item 4 do critério de validação de M5 em `docs/metrics.md`).
+- **Consequências:** o Passo 13 não muda nada aqui; a página já funciona para qualquer partida carregada.
+

@@ -11,7 +11,8 @@ from sqlalchemy.exc import OperationalError, ProgrammingError
 from oddvision import app_queries
 from oddvision.config import ConfigError
 
-ALLOWED_QUERIES = frozenset({"list_matches", "match_header", "team_stats", "lineups", "shots"})
+ALLOWED_QUERIES = frozenset({"list_matches", "match_header", "team_stats", "lineups", "shots", "passes", "xg_timeline",
+                             "match_timeline", "period_bounds"})
 CACHE_SECONDS = 600
 
 

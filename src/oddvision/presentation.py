@@ -92,6 +92,58 @@ def lineup_table(lineups: pd.DataFrame, team_id: int) -> pd.DataFrame:
     }, columns=LINEUP_COLUMNS)
 
 
+INCIDENT_COLUMNS = ["Minuto", "Time", "Incidente", "Jogador", "Detalhe"]
+CARDS = {"Yellow Card": "Cartão amarelo", "Second Yellow": "Segundo amarelo", "Red Card": "Cartão vermelho"}
+SUBSTITUTION_REASONS = {"Tactical": "tática", "Injury": "lesão"}
+
+
+def incident_table(timeline: pd.DataFrame) -> pd.DataFrame:
+    """Gols, cartões e substituições em ordem cronológica (período, idx), em português.
+
+    Substituição: 'Jogador' é quem saiu e o detalhe diz quem entrou. Gol contra não tem jogador (a fonte não o informa).
+    """
+    ordered = timeline.sort_values(["period", "idx"])
+    rows = []
+    for _, r in ordered.iterrows():
+        kind, detail = r["incident_type"], r["detail"]
+        player = MISSING_TEXT if _missing(r["player_name"]) else r["player_name"]
+        if kind == "Goal":
+            label, text = "Gol", "Pênalti" if detail == "Penalty" else ""
+        elif kind == "Own Goal":
+            label, text = "Gol contra (a favor)", "autor não informado pela fonte"
+        elif kind == "Card":
+            label, text = CARDS.get(detail, detail), ""
+        else:
+            reason = "" if _missing(detail) else f" ({SUBSTITUTION_REASONS.get(detail, detail)})"
+            label, text = "Substituição", f"Entra {r['related_player_name']}{reason}"
+        rows.append((r["rotulo"], r["team_name"], label, player, text))
+    return pd.DataFrame(rows, columns=INCIDENT_COLUMNS)
+
+
+PASS_KINDS = {
+    "tentados": "Todos os passes tentados",
+    "completos": "Completos",
+    "incompletos": "Incompletos",
+    "progressivos": "Progressivos (OddVision v1)",
+    "para_a_area": "Para a área",
+}
+
+
+def filter_passes(passes: pd.DataFrame, team_id: int, player_id: int | None = None, kind: str = "tentados") -> pd.DataFrame:
+    """Passes tentados (M4) de um time, opcionalmente de um jogador, no recorte escolhido (chaves de PASS_KINDS)."""
+    if kind not in PASS_KINDS:
+        raise ValueError(f"tipo de passe desconhecido: {kind}")
+    selected = passes[(passes["team_id"] == team_id) & passes["is_tentado"]]
+    if player_id is not None:
+        selected = selected[selected["player_id"] == player_id]
+    column = {"completos": "is_complete", "progressivos": "is_progressivo", "para_a_area": "is_passe_para_area"}.get(kind)
+    if column:
+        selected = selected[selected[column]]
+    elif kind == "incompletos":
+        selected = selected[~selected["is_complete"]]
+    return selected
+
+
 def shot_table(shots: pd.DataFrame) -> pd.DataFrame:
     """Finalizações em ordem cronológica (período, idx), com a disputa de pênaltis por último e textos em português."""
     ordered = shots.sort_values(["period", "idx"])

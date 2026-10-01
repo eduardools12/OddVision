@@ -8,8 +8,8 @@ O OddVision transforma os dados brutos de eventos do **StatsBomb Open Data** (Co
 JSON bruto (imutável) → core (PostgreSQL, tipado) → analytics (views SQL) → Streamlit
 ```
 
-> **Status:** em construção. Passo 11 de 13 concluído: pipeline, banco, as 8 métricas em SQL e a página básica da partida.
-> Faltam os mapas e gráficos (Passo 12) e a carga das 64 partidas (Passo 13): por enquanto só 3 partidas têm eventos carregados.
+> **Status:** em construção. Passo 12 de 13 concluído: pipeline, banco, as 8 métricas em SQL e a página da partida com mapas e gráficos.
+> Falta a carga das 64 partidas (Passo 13): por enquanto só 3 partidas têm eventos carregados.
 
 ## Documentação
 

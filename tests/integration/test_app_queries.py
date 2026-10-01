@@ -74,6 +74,41 @@ def test_shots_include_the_shootout_marked_and_the_football_label_for_the_rest(w
     assert shots["rotulo"].isna().tolist()[2]                                    # a disputa não tem relógio
 
 
+# --------------------------------------------------------------------------- gráficos
+
+def test_passes_returns_only_attempted_passes_with_the_flags_the_filters_need(world, analytics):
+    build(world)
+    world.pass_(10, 1, 11, x=60, y=40, end_x=90, end_y=40)
+    world.pass_(11, 1, 11, x=60, y=40, end_x=90, end_y=40, pass_type="Throw-in")
+    world.pass_(12, 1, 12, x=60, y=40, end_x=70, end_y=40, outcome="Incomplete")
+    frame = q.passes(analytics, 100)
+    assert frame["idx"].tolist() == [10, 12]                       # o lateral não é tentado
+    assert {"is_complete", "is_progressivo", "is_passe_para_area", "is_tentado", "player_id", "team_id"} <= set(frame.columns)
+    assert frame["is_progressivo"].tolist() == [True, False]
+
+
+def test_xg_timeline_and_match_timeline_come_ordered_by_period_and_idx(world, analytics):
+    build(world)
+    xg = q.xg_timeline(analytics, 100)
+    assert xg["idx"].tolist() == [1, 2]                            # a finalização da disputa não entra
+    assert xg["xg_acumulado"].tolist() == pytest.approx([0.4, 0.5])           # 0,4 + 0,1 do mesmo time
+    incidents = q.match_timeline(analytics, 100)
+    assert incidents["incident_type"].tolist() == ["Goal", "Own Goal"]
+
+
+def test_period_bounds_gives_the_start_and_end_of_each_valid_period_in_real_time(world, analytics):
+    world.seed()
+    world.event(1, "Pass", 1, 11, period=1, ts=0)
+    world.event(2, "Half End", 1, period=1, ts=3000)
+    world.event(3, "Pass", 1, 11, period=2, ts=0)
+    world.event(4, "Half End", 1, period=2, ts=2800)
+    world.event(5, "Pass", 1, 11, period=5, ts=10)
+    bounds = q.period_bounds(analytics, 100)
+    assert bounds["period"].tolist() == [1, 2]
+    assert bounds["start_s"].tolist() == [0.0, 3000.0]
+    assert bounds["end_s"].tolist() == [3000.0, 5800.0]
+
+
 # --------------------------------------------------------------------------- só analytics
 
 def test_every_query_text_reads_only_the_analytics_schema():

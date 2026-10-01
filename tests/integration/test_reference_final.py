@@ -273,6 +273,45 @@ def test_every_loaded_match_has_goals_in_the_timeline_equal_to_m1_and_11_starter
     assert wrong_lineups == []
 
 
+def test_the_shot_map_of_the_final_puts_each_team_on_its_own_side_after_the_mirroring(final):
+    """Passo 12: mandante em x >= 60 e visitante em x <= 60 depois do espelhamento (nos dados reais, em jogo)."""
+    from oddvision import app_queries
+    from oddvision.viz.pitch import flip_frame
+
+    shots = app_queries.shots(final, FINAL)
+    shots = shots[~shots["is_shootout"]]
+    flipped = flip_frame(shots, TEAMS["Argentina"]["team_id"], pairs=(("x", "y"),))
+    home, away = flipped[flipped["team_id"] == TEAMS["Argentina"]["team_id"]], flipped[flipped["team_id"] == TEAMS["France"]["team_id"]]
+    assert len(home) == 20 and len(away) == 10
+    assert (home["x"] >= 60).all() and (away["x"] <= 60).all()
+    assert (flipped["x"].between(0, 120) & flipped["y"].between(0, 80)).all()
+
+
+def test_the_xg_chart_series_of_the_final_end_at_the_team_xg_and_the_penalty_steps_are_at_the_known_minutes(final):
+    from oddvision import app_queries
+    from oddvision.viz.pitch import match_end_minutes, xg_series
+
+    xg = app_queries.xg_timeline(final, FINAL)
+    bounds = app_queries.period_bounds(final, FINAL)
+    end_s = match_end_minutes(bounds) * 60
+    assert bounds["period"].tolist() == [1, 2, 3, 4]
+    for name, expected in TEAMS.items():
+        x, y = xg_series(xg, expected["team_id"], end_s)
+        assert y[-1] == pytest.approx(expected["xg_acumulado_final"], abs=1e-4)
+        assert list(y) == sorted(y) and list(x) == sorted(x)
+        steps = xg[(xg["team_id"] == expected["team_id"]) & xg["is_penalty"]]
+        assert steps["rotulo"].tolist() == [f"{m + 1}'" for m in expected["degraus_de_penalti_minute"]]
+
+
+def test_the_period_axis_of_the_final_has_no_overlap(final):
+    from oddvision import app_queries
+
+    bounds = app_queries.period_bounds(final, FINAL)
+    assert (bounds["start_s"] < bounds["end_s"]).all()
+    # o eixo é contíguo: cada período termina exatamente onde o próximo começa (nunca depois dele)
+    assert all(a == pytest.approx(b, abs=1e-9) for a, b in zip(bounds["end_s"].tolist(), bounds["start_s"].tolist()[1:]))
+
+
 def test_m1_every_loaded_match_reproduces_its_official_score(final):
     wrong = final.execute(text("SELECT match_id FROM analytics.match_summary WHERE has_events AND NOT score_matches_events")).all()
     assert wrong == []

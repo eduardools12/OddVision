@@ -107,6 +107,34 @@ def test_lineup_table_shows_the_nickname_when_there_is_one():
     assert p.lineup_table(lineup_frame(), team_id=1)["Jogador"].iloc[0] == "Goleiro"
 
 
+# --------------------------------------------------------------------------- incidentes
+
+def incidents_frame():
+    return pd.DataFrame([
+        dict(period=2, idx=300, rotulo="50'", team_name="Fora", incident_type="Substitution", detail="Tactical", player_name="Sai", related_player_name="Entra"),
+        dict(period=1, idx=20, rotulo="23'", team_name="Casa", incident_type="Goal", detail="Penalty", player_name="Artilheiro", related_player_name=None),
+        dict(period=1, idx=30, rotulo="30'", team_name="Fora", incident_type="Card", detail="Second Yellow", player_name="Zagueiro", related_player_name=None),
+        dict(period=1, idx=40, rotulo="31'", team_name="Casa", incident_type="Own Goal", detail=None, player_name=None, related_player_name=None),
+        dict(period=1, idx=50, rotulo="40'", team_name="Casa", incident_type="Goal", detail=None, player_name="Outro", related_player_name=None)])
+
+
+def test_incident_table_is_chronological_and_translated():
+    table = p.incident_table(incidents_frame())
+    assert table["Minuto"].tolist() == ["23'", "30'", "31'", "40'", "50'"]
+    assert table["Incidente"].tolist() == ["Gol", "Segundo amarelo", "Gol contra (a favor)", "Gol", "Substituição"]
+    assert table["Detalhe"].tolist() == ["Pênalti", "", "autor não informado pela fonte", "", "Entra Entra (tática)"]
+
+
+def test_the_own_goal_has_no_player_and_the_substitution_shows_who_left():
+    table = p.incident_table(incidents_frame())
+    assert table["Jogador"].tolist() == ["Artilheiro", "Zagueiro", "–", "Outro", "Sai"]
+
+
+def test_incident_table_of_an_empty_frame_has_the_columns_and_no_rows():
+    table = p.incident_table(incidents_frame().iloc[0:0])
+    assert list(table.columns) == p.INCIDENT_COLUMNS and len(table) == 0
+
+
 # --------------------------------------------------------------------------- finalizações
 
 def shots_frame():

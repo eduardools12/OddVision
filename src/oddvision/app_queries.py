@@ -20,6 +20,11 @@ QUERIES = {
     "lineups": "SELECT * FROM analytics.match_lineups WHERE match_id = :m",
     "shots": ("SELECT s.*, c.rotulo FROM analytics.shot_events s "
               "LEFT JOIN analytics.event_clock c ON c.event_id = s.event_id WHERE s.match_id = :m"),
+    "passes": "SELECT * FROM analytics.pass_events WHERE match_id = :m AND is_tentado ORDER BY period, idx",
+    "xg_timeline": "SELECT * FROM analytics.xg_timeline WHERE match_id = :m ORDER BY period, idx",
+    "match_timeline": "SELECT * FROM analytics.match_timeline WHERE match_id = :m ORDER BY period, idx",
+    "period_bounds": ("SELECT period, min(tempo_decorrido_s) AS start_s, max(tempo_decorrido_s) AS end_s "
+                      "FROM analytics.event_clock WHERE match_id = :m GROUP BY period ORDER BY period"),
 }
 
 
@@ -64,3 +69,21 @@ def lineups(conn: Connection, match_id: int) -> pd.DataFrame:
 
 def shots(conn: Connection, match_id: int) -> pd.DataFrame:
     return _frame(conn, "shots", m=match_id)
+
+
+def passes(conn: Connection, match_id: int) -> pd.DataFrame:
+    """Passes tentados (M4) com as marcações de completo, progressivo e para a área."""
+    return _frame(conn, "passes", m=match_id)
+
+
+def xg_timeline(conn: Connection, match_id: int) -> pd.DataFrame:
+    return _frame(conn, "xg_timeline", m=match_id)
+
+
+def match_timeline(conn: Connection, match_id: int) -> pd.DataFrame:
+    return _frame(conn, "match_timeline", m=match_id)
+
+
+def period_bounds(conn: Connection, match_id: int) -> pd.DataFrame:
+    """Início e fim de cada período no eixo de tempo real (segundos decorridos)."""
+    return _frame(conn, "period_bounds", m=match_id)
