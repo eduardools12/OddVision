@@ -108,3 +108,51 @@ def test_init_db_reports_an_unreachable_server_without_leaking_the_password(tmp_
     assert "não foi possível" in captured.err
     assert "oddvision" in captured.err and "localhost:1" in captured.err
     assert PASSWORD not in captured.err and PASSWORD not in captured.out
+
+
+# --------------------------------------------------------------------------- --database (verificação em banco vazio)
+
+def ddl_root(tmp_path):
+    write_database_toml(tmp_path, port=1)  # nada escuta na porta 1: a mensagem de erro revela o banco que se tentou usar
+    (tmp_path / "sql" / "ddl").mkdir(parents=True)
+    (tmp_path / "sql" / "ddl" / "001_x.sql").write_text("SELECT 1;", encoding="utf-8")
+    return tmp_path
+
+
+@pytest.mark.parametrize("command", ["init-db", "load", "check"])
+@pytest.mark.parametrize("database", ["postgres", "oddvision_test", "template1", "outro"])
+def test_the_database_option_refuses_anything_but_the_main_or_a_verify_database(project_root, capsys, command, database):
+    root = ddl_root(project_root)
+    assert main(["--database", database, command], root=root) == 1
+    err = capsys.readouterr().err
+    assert "_verify" in err and database in err
+    assert "não foi possível" not in err                       # recusou antes de tentar conectar
+
+
+def test_the_database_option_targets_the_verify_database_end_to_end(project_root, capsys):
+    root = ddl_root(project_root)
+    assert main(["--database", "oddvision_verify", "init-db"], root=root) == 1
+    err = capsys.readouterr().err
+    assert "banco oddvision_verify " in err and "não foi possível" in err     # tentou conectar no banco pedido
+
+
+@pytest.mark.parametrize("requested, expected", [
+    (None, "oddvision"), ("oddvision", "oddvision"), ("oddvision_verify", "oddvision_verify"), ("copa_verify", "copa_verify"),
+])
+def test_pick_database_accepts_the_main_and_verify_databases(requested, expected):
+    from oddvision.db import DatabaseConfig
+    from oddvision.pipeline import _pick_database
+
+    config = DatabaseConfig(host="h", port=1, user="u", password="p", main_db="oddvision", test_db="oddvision_test")
+    assert _pick_database(config, requested) == expected
+
+
+@pytest.mark.parametrize("requested", ["postgres", "oddvision_test", "template1", "verify", "oddvision_verify2", ""])
+def test_pick_database_refuses_everything_else(requested):
+    from oddvision.config import ConfigError
+    from oddvision.db import DatabaseConfig
+    from oddvision.pipeline import _pick_database
+
+    config = DatabaseConfig(host="h", port=1, user="u", password="p", main_db="oddvision", test_db="oddvision_test")
+    with pytest.raises(ConfigError, match="_verify"):
+        _pick_database(config, requested)

@@ -20,11 +20,10 @@ def loaded(db_config):
     with engine.connect() as conn:
         views = conn.execute(text("SELECT count(*) FROM information_schema.views WHERE table_schema = 'analytics'")).scalar_one()
         events = conn.execute(text("SELECT count(*) FROM core.events WHERE match_id = :m"), {"m": FINAL}).scalar_one()
-        without = conn.execute(text("SELECT match_id FROM analytics.match_summary WHERE NOT has_events ORDER BY match_id LIMIT 1")).scalar()
     engine.dispose()
     if views < 11 or events == 0:
         pytest.skip("o banco principal precisa das views de analytics e da final carregada: rode init-db e load")
-    return {"without_events": without}
+    return True
 
 
 def page(name="pages/1_Partida.py"):
@@ -98,9 +97,25 @@ def test_filtering_the_pass_map_by_player_renders(loaded):
     assert len(at.get("image")) == 4
 
 
-def test_a_match_without_events_shows_a_notice_instead_of_failing(loaded):
+def test_a_match_without_events_shows_a_notice_instead_of_failing(loaded, monkeypatch):
+    """Com as 64 partidas carregadas nenhuma está sem eventos; a ausência é SIMULADA: o cabeçalho vem como 'sem eventos'
+    e o resto (escalações) continua o da final. A página precisa avisar, sem abas de métricas e sem quebrar."""
+    from oddvision import app_support
+
+    real = app_support.run_query
+
+    def without_events(name, match_id=None):
+        result = real(name, match_id)
+        if name == "match_header":
+            return {**result, "has_events": False, "home_goals": None, "away_goals": None, "score_matches_events": None,
+                    "home_penalties": None, "away_penalties": None}
+        return result
+
+    monkeypatch.setattr(app_support, "run_query", without_events)
     at = page().run()
-    at.sidebar.selectbox[0].select(loaded["without_events"]).run()
     assert not at.exception
     assert any("ainda não foram carregados" in i.value for i in at.info)
     assert [t.label for t in at.tabs] == []
+    assert not any("Disputa de pênaltis" in s.value for s in at.subheader)    # sem eventos não há disputa para mostrar
+    assert len(at.dataframe) == 2                                             # só as duas escalações
+    assert len(at.get("image")) == 0

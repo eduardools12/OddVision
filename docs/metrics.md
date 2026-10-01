@@ -136,7 +136,7 @@ Os exemplos usam a **final da Copa 2022**, Argentina 3–3 França (`match_id = 
 | **Eventos incluídos** | Passes com o pé, **incluindo bolas paradas**: tiro de meta, falta, escanteio, saída de bola, passes de recuperação e interceptação |
 | **Eventos excluídos** | `'Throw-in'` (cobrado com a mão). `outcome = 'Unknown'`: o resultado não foi determinado pela fonte (394 casos na Copa, cerca de 0,6%). `outcome = 'Injury Clearance'`: bola chutada para fora de propósito por causa de lesão, que não é tentativa de passe (42 casos). Período 5 |
 | **Valores ausentes** | **`outcome` ausente significa passe completo, não dado faltante** (derivação 🟩 `is_complete`). `passes_tentados = 0` → `pct_acerto_passes = NULL` |
-| **Unidade** | Contagem (inteiro); percentual de 0 a 100 com 1 casa decimal |
+| **Unidade** | Contagem (inteiro); percentual de 0 a 100. A view guarda o percentual **sem arredondar** e a apresentação mostra 1 casa decimal (D31) |
 | **Limitações** | O percentual não mede dificuldade, risco nem valor do passe: um recuo seguro vale o mesmo que um passe entre linhas. Incluir bolas paradas é escolha; outras fontes podem excluí-las |
 | **Exemplos** | Final: Argentina **538 / 661 = 81,4%**; França **414 / 544 = 76,1%** |
 | **Critério de validação** | Invariante `passes_completos ≤ passes_tentados`. Reconciliação: completos + `Incomplete` + `Out` + `Pass Offside` = `passes_tentados`. Constraint `is_complete = (outcome IS NULL)`. Teste de referência da final |
@@ -241,3 +241,4 @@ Os exemplos usam a **final da Copa 2022**, Argentina 3–3 França (`match_id = 
 | Data | Versão | Mudança |
 |---|---|---|
 | 2026-09-29 | v1 | Versão inicial aprovada com a especificação do MVP |
+| 2026-10-01 | v1 | As 8 métricas implementadas em SQL (Passo 10) e validadas: valores de referência da final, fronteiras sintéticas e invariantes nas 64 partidas ([D30 a D36](decisions.md)). **Nenhuma fórmula mudou.** Esclarecimentos de implementação: percentual de M4 sem arredondar na view; de dentro da área para dentro com ganho de 10 jardas ou mais é progressivo em M5 e M6 (D32); a inspeção visual da M5 foi feita (D38) |

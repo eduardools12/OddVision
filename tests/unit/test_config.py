@@ -106,9 +106,10 @@ def test_project_paths(tmp_path):
 
 
 def test_real_selection_file_matches_the_step_2_findings():
-    """Contrato com docs/data_notes.md: commit fixado e as 3 partidas-sentinela."""
+    """Contrato com docs/data_notes.md: commit fixado e as 64 partidas da Copa (Passo 13), com as 3 sentinelas entre elas."""
     selection = load_selection(selection_path(PROJECT_ROOT))
     assert selection.source_repo == "hudl/open-data"
     assert selection.source_commit == VALID_COMMIT
     assert (selection.competition_id, selection.season_id) == (43, 106)
-    assert selection.load_match_ids == (3869685, 3857276, 3857271)
+    assert len(selection.load_match_ids) == 64 == len(set(selection.load_match_ids))
+    assert {3869685, 3857276, 3857271} <= set(selection.load_match_ids)

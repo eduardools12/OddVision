@@ -44,6 +44,8 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D36 | Relógio de eventos, escalações e linha do tempo da partida; contrato da camada analytics | Aceita |
 | D37 | Aplicação Streamlit: consulta, apresentação e cache em camadas separadas | Aceita |
 | D38 | Mapas e gráficos da partida: o espelhamento do visitante só na apresentação | Aceita |
+| D39 | Carga das 64 partidas: medição, idempotência e validação | Aceita |
+| D40 | Opção `--database` do pipeline (bancos de verificação `_verify`) | Aceita |
 
 ---
 
@@ -531,4 +533,22 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
   - **Linha do tempo:** gols, gols contra, cartões e substituições, com uma lista em português (`incident_table`) num expansor. O gol contra aparece sem jogador (a fonte não informa o autor no evento).
 - **Validação:** 26 testes unitários da visualização (espelhamento ida e volta, mandante em `x ≥ 60` e visitante em `x ≤ 60`, série do xG, limites dos períodos, figuras sem vazamento, filtros) mais 3 de incidentes; nos dados reais da final: 20 + 10 finalizações com cada time do seu lado depois do espelhamento, último ponto do xG = `xg` (2,7583 e 2,2726), degraus de pênalti em 23', 80' e 118', eixo dos 4 períodos contíguo e sem sobreposição; `AppTest` das abas e de todas as combinações de filtro de passes para os dois times. Inspeção visual no navegador interno (mapa de finalizações, xG, linha do tempo e passes) e dos passes progressivos (56) e para a área (7) da Argentina: todos os progressivos começam na metade ofensiva e os 7 passes para a área cruzam a linha da área (o item 4 do critério de validação de M5 em `docs/metrics.md`).
 - **Consequências:** o Passo 13 não muda nada aqui; a página já funciona para qualquer partida carregada.
+
+## D39 — Carga das 64 partidas: medição, idempotência e validação
+
+- **Contexto:** o Passo 13 amplia a seleção das 3 partidas-sentinela para as 64 da Copa 2022 (`config/selection.toml`, `load.match_ids`). Os 130 arquivos brutos já estavam ingeridos desde o Passo 3.
+- **Medição (antes de otimizar):** carga completa em **87 s** na primeira execução e **121 s** na segunda (apagar e reinserir cada partida), dentro da projeção do Passo 8 (menos de 2 minutos). **A otimização com `COPY` não se justifica** e não foi feita.
+- **Resultado:** 64 partidas, 3.244 linhas de escalação, **234.637 eventos** (= soma dos `record_count` do manifest do commit fixado, conferido pelo C01), 1.494 finalizações, 68.515 passes, 53.764 conduções, 228 cartões, 587 substituições e 829 jogadores. `check`: **11 checks, 0 erros, 1 aviso** (o C11, com as mesmas 4 variações de nome já registradas em `docs/data_notes.md`).
+- **Idempotência:** o instantâneo do banco (contagens por tabela e hash do conteúdo de eventos, finalizações, passes e escalações) é **idêntico** depois da primeira e da segunda execução de `load`.
+- **Fatos públicos conferidos nos dados carregados** (`tests/integration/test_full_load.py`): 172 gols na Copa (Σ `gols` das duas equipes = Σ placares oficiais), 5 disputas de pênaltis, 228 cartões, 106 eventos de disputa, 22 titulares por partida, e o placar reconstruído pelos eventos igual ao oficial **nas 64 partidas**. As invariantes (Σ jogadores = time; no alvo ≤ finalizações; npxG ≤ xG; progressivos ≤ completos) valem em todas, e o último ponto do xG acumulado é o `xg` de cada time nas 64.
+- **O app em qualquer partida:** todas as tabelas e figuras de dados (xG, linha do tempo, comparativo, finalizações, escalações) são construídas para as 64 partidas, e a página real abre nos casos de borda (partida sem gols, com disputa de pênaltis, com gol contra e com prorrogação).
+- **Avisos novos da carga completa (informativos):** os apelidos de 11184 (`Otavinho`) e 12352 (`Matt Turner`) aparecem em uns arquivos e faltam em outros; vale o mais frequente (a regra de D24), sem efeito nas métricas.
+- **Pendente (só o autor pode fazer):** a prova em banco vazio. O `oddvision_verify` precisa ser criado pelo autor (o papel do pipeline não é superusuário, D17). Depois: `python -m oddvision.pipeline --database oddvision_verify all` (D40) e comparar o instantâneo com o de `oddvision`.
+
+## D40 — Opção `--database` do pipeline (bancos de verificação `_verify`)
+
+- **Contexto:** o critério de sucesso da especificação pede o pipeline rodando do zero em um banco vazio e o resultado igual ao do banco principal. O pipeline só conhecia `databases.main`.
+- **Decisão:** `python -m oddvision.pipeline --database NOME <comando>` escolhe o banco de trabalho. **Só são aceitos o banco principal e nomes terminados em `_verify`**; qualquer outro (`postgres`, o banco de testes, um nome com erro de digitação) é recusado **antes de conectar**, com uma mensagem que explica a regra. Sem a opção, nada muda. A opção vale para `init-db`, `load`, `check` e `all`.
+- **Alternativas:** *copiar `database.toml` com outro `main`* (mexe num arquivo com senha); *aceitar qualquer nome* (risco de rodar `init-db` no banco errado do servidor); *chave `databases.verify` no TOML* (mais configuração para um uso raro).
+- **Validação:** testes unitários da função de escolha (aceita o principal e `_verify`; recusa `postgres`, `oddvision_test`, `template1`, `verify`, `oddvision_verify2` e vazio), recusa antes de conectar em `init-db`, `load` e `check`, e um teste de ponta a ponta que mostra a tentativa de conexão no banco pedido.
 

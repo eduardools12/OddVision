@@ -32,6 +32,20 @@ from oddvision.load import LoadError, load_matches, load_p2
 from oddvision.transform.common import TransformError
 
 
+def _pick_database(config, requested: str | None) -> str:
+    """Banco em que o pipeline trabalha: o principal, ou um banco de verificação (nome terminado em `_verify`).
+
+    A restrição evita rodar `init-db`/`load` por engano em outro banco do servidor (por exemplo `postgres`).
+    """
+    if requested is None or requested == config.main_db:
+        return config.main_db
+    if requested.endswith("_verify"):
+        return requested
+    raise ConfigError(
+        f"--database aceita o banco principal ({config.main_db!r}) ou um banco de verificação terminado em '_verify'; recebido {requested!r}"
+    )
+
+
 def _cmd_ingest(root: Path, download: Callable[[str], bytes]) -> int:
     try:
         selection = load_selection(selection_path(root))
@@ -51,16 +65,17 @@ def _cmd_ingest(root: Path, download: Callable[[str], bytes]) -> int:
     return 0
 
 
-def _cmd_init_db(root: Path) -> int:
+def _cmd_init_db(root: Path, database: str | None = None) -> int:
     """Cria (ou completa) os schemas core e analytics no banco principal. Nunca apaga dados."""
     try:
         config = load_database_config(database_config_path(root))
+        db_name = _pick_database(config, database)
         ddl_files(ddl_dir(root))  # confere a pasta de DDL antes de tentar conectar
     except ConfigError as exc:
         print(f"erro: {exc}", file=sys.stderr)
         return 1
 
-    engine = make_engine(config, config.main_db)
+    engine = make_engine(config, db_name)
     try:
         applied = apply_ddl(engine, ddl_dir(root))
         tables = core_table_names(engine)
@@ -68,7 +83,7 @@ def _cmd_init_db(root: Path) -> int:
             analytics = apply_analytics(conn, analytics_dir(root))
     except SQLAlchemyError as exc:
         print(
-            f"erro: não foi possível aplicar o DDL no banco {config.main_db} "
+            f"erro: não foi possível aplicar o DDL no banco {db_name} "
             f"({config.host}:{config.port}, usuário {config.user}): {_database_reason(exc)}",
             file=sys.stderr,
         )
@@ -76,7 +91,7 @@ def _cmd_init_db(root: Path) -> int:
     finally:
         engine.dispose()
 
-    print(f"banco: {config.main_db} em {config.host}:{config.port} (usuário {config.user})")
+    print(f"banco: {db_name} em {config.host}:{config.port} (usuário {config.user})")
     print(f"DDL aplicado: {', '.join(applied)}")
     print(f"core: {len(tables)} tabelas")
     if analytics:
@@ -88,16 +103,17 @@ def _database_reason(exc: SQLAlchemyError) -> str:
     return " ".join(str(getattr(exc, "orig", exc)).split())[:300]  # a senha nunca faz parte dessa mensagem
 
 
-def _cmd_load(root: Path) -> int:
+def _cmd_load(root: Path, database: str | None = None) -> int:
     """Carrega no core o que foi baixado: competições, times e partidas (P2). Repetível."""
     try:
         selection = load_selection(selection_path(root))
         config = load_database_config(database_config_path(root))
+        db_name = _pick_database(config, database)
     except ConfigError as exc:
         print(f"erro: {exc}", file=sys.stderr)
         return 1
 
-    engine = make_engine(config, config.main_db)
+    engine = make_engine(config, db_name)
     try:
         result = load_p2(engine, selection, raw_dir(root), manifest_path(root))
         lineups = load_matches(engine, selection, raw_dir(root), manifest_path(root))
@@ -106,7 +122,7 @@ def _cmd_load(root: Path) -> int:
         return 1
     except SQLAlchemyError as exc:
         print(
-            f"erro: não foi possível carregar no banco {config.main_db} "
+            f"erro: não foi possível carregar no banco {db_name} "
             f"({config.host}:{config.port}, usuário {config.user}): {_database_reason(exc)}",
             file=sys.stderr,
         )
@@ -114,7 +130,7 @@ def _cmd_load(root: Path) -> int:
     finally:
         engine.dispose()
 
-    print(f"banco: {config.main_db} em {config.host}:{config.port} (usuário {config.user})")
+    print(f"banco: {db_name} em {config.host}:{config.port} (usuário {config.user})")
     print(f"competitions: {result.competitions}, teams: {result.teams}, matches: {result.matches}")
     print(f"ingestion_log: {result.log_files} arquivos registrados")
     for match in lineups.matches:
@@ -137,10 +153,11 @@ def _cmd_load(root: Path) -> int:
     return 0
 
 
-def _cmd_check(root: Path) -> int:
+def _cmd_check(root: Path, database: str | None = None) -> int:
     """Executa os checks de qualidade e imprime o relatório. Código 1 se algum check de nível `error` falhar."""
     try:
         config = load_database_config(database_config_path(root))
+        db_name = _pick_database(config, database)
     except ConfigError as exc:
         print(f"erro: {exc}", file=sys.stderr)
         return 1
@@ -148,7 +165,7 @@ def _cmd_check(root: Path) -> int:
     manifest = manifest_path(root)
     # O C11 lê os arquivos brutos de escalação: só roda se a ingestão já aconteceu.
     with_raw = manifest.exists() and any(p.startswith("lineups/") for p in read_manifest(manifest))
-    engine = make_engine(config, config.main_db)
+    engine = make_engine(config, db_name)
     try:
         with engine.connect() as conn:
             results = run_checks(
@@ -160,7 +177,7 @@ def _cmd_check(root: Path) -> int:
         return 1
     except SQLAlchemyError as exc:
         print(
-            f"erro: não foi possível executar os checks no banco {config.main_db} "
+            f"erro: não foi possível executar os checks no banco {db_name} "
             f"({config.host}:{config.port}, usuário {config.user}): {_database_reason(exc)}",
             file=sys.stderr,
         )
@@ -168,20 +185,20 @@ def _cmd_check(root: Path) -> int:
     finally:
         engine.dispose()
 
-    print(f"banco: {config.main_db} em {config.host}:{config.port} (usuário {config.user})")
+    print(f"banco: {db_name} em {config.host}:{config.port} (usuário {config.user})")
     if not with_raw:
         print("C11   PULADO  sem arquivos brutos de escalação (rode `ingest`)")
     print(format_report(results))
     return 1 if has_errors(results) else 0
 
 
-def _cmd_all(root: Path, download: Callable[[str], bytes]) -> int:
+def _cmd_all(root: Path, download: Callable[[str], bytes], database: str | None = None) -> int:
     """ingest -> init-db -> load -> check. Para no primeiro passo que falhar e devolve o código dele."""
     for name, step in (
         ("ingest", lambda: _cmd_ingest(root, download)),
-        ("init-db", lambda: _cmd_init_db(root)),
-        ("load", lambda: _cmd_load(root)),
-        ("check", lambda: _cmd_check(root)),
+        ("init-db", lambda: _cmd_init_db(root, database)),
+        ("load", lambda: _cmd_load(root, database)),
+        ("check", lambda: _cmd_check(root, database)),
     ):
         print(f"\n== {name} ==")
         code = step()
@@ -198,6 +215,10 @@ def main(
     download: Callable[[str], bytes] = http_download,
 ) -> int:
     parser = argparse.ArgumentParser(prog="python -m oddvision.pipeline", description="Pipeline do OddVision.")
+    parser.add_argument(
+        "--database", metavar="NOME",
+        help="banco de trabalho: o principal (padrão) ou um banco de verificação terminado em '_verify' (criado por você)",
+    )
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("ingest", help="baixa os JSONs brutos do StatsBomb para data/raw/ e gera o manifest")
     commands.add_parser("init-db", help="cria os schemas core e analytics no banco principal (repetível; nunca apaga dados)")
@@ -209,13 +230,13 @@ def main(
     if args.command == "ingest":
         return _cmd_ingest(root, download)
     if args.command == "init-db":
-        return _cmd_init_db(root)
+        return _cmd_init_db(root, args.database)
     if args.command == "load":
-        return _cmd_load(root)
+        return _cmd_load(root, args.database)
     if args.command == "check":
-        return _cmd_check(root)
+        return _cmd_check(root, args.database)
     if args.command == "all":
-        return _cmd_all(root, download)
+        return _cmd_all(root, download, args.database)
     raise AssertionError(f"comando não tratado: {args.command}")  # pragma: no cover
 
 
