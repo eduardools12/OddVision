@@ -41,6 +41,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D33 | Conduções progressivas (M6) e parâmetros compartilhados da convenção | Aceita |
 | D34 | Passes para a área (M7) | Aceita |
 | D35 | xG acumulado (M8): `xg_timeline` com eixo de tempo real | Aceita |
+| D36 | Relógio de eventos, escalações e linha do tempo da partida; contrato da camada analytics | Aceita |
 
 ---
 
@@ -492,3 +493,14 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
   - Time sem finalizações não tem linhas e o ponto inicial (0, 0) é da apresentação, como na especificação.
 - **Mutante equivalente conhecido:** retirar só o `WHERE NOT is_shootout` não muda o resultado, porque o `JOIN` com as durações (só períodos 1 a 4) já descarta o período 5. As duas proteções são mantidas de propósito (defesa em profundidade) e o teste falha quando as duas são retiradas.
 - **Validação:** 25 testes sintéticos (soma por time, pênalti como degrau, disputa fora, ordem `(period, idx)` com minuto e `idx` invertidos, 1º tempo de 60 minutos, dois `Half End` contados uma vez, sem `Half End`, 14 rótulos nas fronteiras), a referência da final (último ponto = xG de M3: Argentina 2,7583 e França 2,2726; degraus de pênalti nos minutos 22, 79 e 117, rótulos 23', 80' e 118'; cada degrau de 0,7835), as invariantes em todas as partidas carregadas (último ponto = `xg` da M3; tempo crescente com `(period, idx)`) e Inglaterra x Irã (1º tempo longo sem sobreposição). 18 mutações: 16 detectadas de primeira; "ordenar só por `idx`" sobreviveu e levou ao teste de `idx` invertido entre períodos (agora detectada); a outra sobrevivente é o equivalente acima.
+
+## D36 — Relógio de eventos, escalações e linha do tempo da partida; contrato da camada analytics
+
+- **Contexto:** a página da partida (Passos 11 e 12) precisa das escalações e de uma linha do tempo de incidentes, e o gráfico de xG (D35) e essa linha do tempo precisam da mesma régua de tempo.
+- **Decisão:**
+  - `analytics.event_clock` (`04_event_clock.sql`) calcula, para cada evento em tempo válido, `tempo_decorrido_s`, `minuto_futebol` e `rotulo`. **A lógica do eixo de tempo foi movida de `xg_timeline` para cá** e `xg_timeline` passou a ler o relógio; as colunas de `xg_timeline` não mudaram, e os testes do M8 (25) confirmaram a refatoração.
+  - `analytics.match_lineups` (`50_match_lineups.sql`): uma linha por jogador relacionado, de toda partida com escalação (inclusive quem não entrou), com nomes, apelido, camisa, posição inicial, `is_starter` e `played`.
+  - `analytics.match_timeline` (`60_match_timeline.sql`): gols (`'Penalty'` no detalhe quando é pênalti), gols contra, cartões (tipo no detalhe) e substituições (motivo no detalhe; `related_player_id` é quem entrou), em tempo válido. **Gol contra:** o evento `Own Goal For` é do time beneficiado e não traz o autor, então a linha tem o time beneficiado e `player_id` nulo. A disputa de pênaltis fica fora da linha do tempo (o placar dela é `penaltis_disputa`, M1).
+  - `tests/integration/test_analytics_contract.py` fixa o **contrato da camada**: o conjunto exato de 11 views (nada além de views), as colunas de `team_match_stats` e `player_match_stats` na ordem acordada, as colunas de identidade das views de evento, tipos numéricos nas métricas e booleanos em toda marcação `is_*`.
+- **Validação:** 17 testes sintéticos de `match_views` (colunas, titulares e reservas, cada tipo de cartão, substituição, disputa fora, ordem cronológica, gols da linha do tempo = `gols` do M1) e 15 de contrato; na final real, os 6 gols nos minutos públicos (Argentina 23' pênalti, 36' e 108'; França 80' pênalti, 81' e 118' pênalti, todos de Mbappé), os cartões e substituições conciliados com o `core`, 11 titulares por lado; em todas as partidas carregadas, gols da linha do tempo = `gols` e 11 titulares por time. 30 mutações (relógio, xG acumulado, linha do tempo e escalações), todas detectadas.
+- **Fora do que o plano pedia:** a "revisão `data:validate-data`" prevista no plano 10.8 **não foi executada** como skill; a verificação foi feita pelas três camadas de prova de D29 (fronteiras sintéticas, referência da final e invariantes) e pelas mutações.

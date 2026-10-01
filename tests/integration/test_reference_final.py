@@ -234,6 +234,45 @@ def test_m8_the_long_first_half_of_england_iran_does_not_overlap_the_second(fina
     assert period_1 < period_2 and period_2 >= first_half_s
 
 
+def test_the_goal_timeline_of_the_final_has_the_six_goals_at_the_known_minutes(final):
+    """Fatos públicos da final: Argentina 23' (pênalti), 36' e 108'; França 80' (pênalti), 81' e 118' (pênalti)."""
+    goals = final.execute(text(
+        "SELECT team_name, player_name, rotulo, detail FROM analytics.match_timeline "
+        "WHERE match_id = :m AND incident_type = 'Goal' ORDER BY period, idx"), {"m": FINAL}).all()
+    assert [(g.team_name, g.rotulo, g.detail) for g in goals] == [
+        ("Argentina", "23'", "Penalty"), ("Argentina", "36'", None), ("France", "80'", "Penalty"),
+        ("France", "81'", None), ("Argentina", "108'", None), ("France", "118'", "Penalty")]
+    assert [g.player_name for g in goals if g.team_name == "France"] == ["Kylian Mbappé Lottin"] * 3
+
+
+def test_the_timeline_cards_and_substitutions_of_the_final_match_the_core_counts(final):
+    for incident, source in (("Card", "core.cards"), ("Substitution", "core.substitutions")):
+        shown = final.execute(text("SELECT count(*) FROM analytics.match_timeline WHERE match_id = :m AND incident_type = :i"),
+                              {"m": FINAL, "i": incident}).scalar_one()
+        in_core = final.execute(text(
+            f"SELECT count(*) FROM {source} x JOIN core.events e USING (event_id) WHERE e.match_id = :m AND e.period <= 4"), {"m": FINAL}).scalar_one()
+        assert shown == in_core > 0, incident
+
+
+def test_the_lineups_of_the_final_have_11_starters_per_team(final):
+    starters = dict(final.execute(text(
+        "SELECT team_name, count(*) FILTER (WHERE is_starter) FROM analytics.match_lineups WHERE match_id = :m GROUP BY team_name"),
+        {"m": FINAL}).all())
+    assert starters == {"Argentina": 11, "France": 11}
+
+
+def test_every_loaded_match_has_goals_in_the_timeline_equal_to_m1_and_11_starters(final):
+    wrong_goals = final.execute(text(
+        "SELECT s.match_id, s.team_id FROM analytics.team_match_stats s WHERE s.gols <> ("
+        "SELECT count(*) FROM analytics.match_timeline t WHERE t.match_id = s.match_id AND t.team_id = s.team_id "
+        "AND t.incident_type IN ('Goal', 'Own Goal'))")).all()
+    assert wrong_goals == []
+    wrong_lineups = final.execute(text(
+        "SELECT match_id, team_id FROM analytics.match_lineups WHERE match_id IN (SELECT DISTINCT match_id FROM core.events) "
+        "GROUP BY match_id, team_id HAVING count(*) FILTER (WHERE is_starter) <> 11")).all()
+    assert wrong_lineups == []
+
+
 def test_m1_every_loaded_match_reproduces_its_official_score(final):
     wrong = final.execute(text("SELECT match_id FROM analytics.match_summary WHERE has_events AND NOT score_matches_events")).all()
     assert wrong == []

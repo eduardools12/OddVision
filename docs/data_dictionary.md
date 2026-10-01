@@ -336,20 +336,24 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 
 ---
 
-## 13. Schema `analytics` (views planejadas)
+## 13. Schema `analytics` (views implementadas no Passo 10)
 
-As fórmulas estão em [`metrics.md`](metrics.md). Todas as colunas de `analytics` são 🟨 **CÁLCULO** ou 🟥 **CONVENÇÃO**, exceto as copiadas diretamente da fonte, como `statsbomb_xg` e o placar oficial. **Nenhuma view lê colunas `extra`.**
+As fórmulas estão em [`metrics.md`](metrics.md). Todas as colunas de `analytics` são 🟨 **CÁLCULO** ou 🟥 **CONVENÇÃO**, exceto as copiadas diretamente da fonte, como `statsbomb_xg` e o placar oficial. **Nenhuma view lê colunas `extra`.** O `init-db` apaga as views e as recria dos arquivos `sql/analytics/NN_*.sql`, em ordem de nome ([D29](decisions.md#d29--camada-analytics-views-recriadas-dos-arquivos-e-três-camadas-de-prova)).
 
-| View | Granularidade | Conteúdo principal |
-|---|---|---|
-| `analytics.match_summary` | partida | Placar oficial, placar reconstruído, `penaltis_disputa` |
-| `analytics.match_lineups` | partida × jogador | Camisa, `is_starter`, `played`, `first_position` |
-| `analytics.team_match_stats` | partida × time | M1–M7 |
-| `analytics.player_match_stats` | partida × jogador | M1–M7 |
-| `analytics.shot_events` | finalização | Tempo, jogador, tipo, resultado, `statsbomb_xg`, `is_no_alvo`, coordenadas para o mapa |
-| `analytics.pass_events` | passe | `is_jogo_corrido`, `is_progressivo`, `is_passe_para_area`, coordenadas |
-| `analytics.carry_events` | condução | `is_progressiva`, coordenadas |
-| `analytics.xg_timeline` | partida × time × degrau | `tempo_decorrido_s`, `rotulo_tempo`, `xg_acumulado` |
-| `analytics.match_timeline` | incidente | Gols, gols contra, cartões, substituições |
+| Arquivo | View | Granularidade | Conteúdo principal |
+|---|---|---|---|
+| `01` | `analytics.convention_params` | 1 linha | Parâmetros da convenção OddVision v1: `min_start_x = 48`, `min_gain_yd = 10` (M5 e M6 leem os mesmos, [D33](decisions.md)) |
+| `04` | `analytics.event_clock` | evento em tempo válido | `tempo_decorrido_s` (eixo real), `minuto_futebol`, `rotulo` (`23'`, `45+14'`) |
+| `05` | `analytics.shot_events` | finalização (inclui a disputa, marcada) | Jogador, tipo, resultado, `statsbomb_xg`, coordenadas, `is_goal`, `is_no_alvo`, `is_penalty`, `is_shootout` |
+| `06` | `analytics.pass_events` | passe | Coordenadas, `is_jogo_corrido`, `is_tentado`, `is_progressivo`, `is_passe_para_area` |
+| `07` | `analytics.carry_events` | condução | Coordenadas, `is_progressivo` |
+| `10` | `analytics.team_match_stats` | partida × time | M1–M7 (colunas na ordem das métricas) |
+| `20` | `analytics.player_match_stats` | partida × jogador | M1–M7 |
+| `30` | `analytics.match_summary` | partida | Placar oficial, placar reconstruído, `penaltis_disputa` |
+| `40` | `analytics.xg_timeline` | finalização em tempo válido | `xg_acumulado` por time, `tempo_decorrido_s`, `rotulo` (M8) |
+| `50` | `analytics.match_lineups` | partida × jogador relacionado | Camisa, apelido, posição inicial, `is_starter`, `played` |
+| `60` | `analytics.match_timeline` | incidente | Gols, gols contra, cartões, substituições, com `rotulo` |
 
-Os parâmetros das convenções (`MIN_START_X`, `MIN_GAIN_YD`, limites da área) são declarados em uma CTE `params` no topo de cada view que os usa, com um comentário apontando para `metrics.md`.
+Os parâmetros da convenção progressiva (`min_start_x`, `min_gain_yd`) ficam em `convention_params`. Os limites da área (`x ≥ 102`, `18 ≤ y ≤ 62`) e o gol em `(120, 40)` são geometria fixa do campo do StatsBomb e aparecem nas expressões de `pass_events` e `carry_events`; um teste de fronteira cobre cada limite.
+
+Diferenças em relação ao que o plano previa: a marcação das conduções chama-se `is_progressivo` (igual à dos passes, para a aplicação consultar as duas do mesmo jeito); o rótulo do relógio chama-se `rotulo` (em `event_clock` e `xg_timeline`); e os parâmetros não ficam em uma CTE por view, mas em `convention_params`.
