@@ -13,10 +13,7 @@
 -- "Passe completo" é is_complete (resultado ausente na fonte). Nunca lê colunas JSONB (D05).
 
 CREATE VIEW analytics.pass_events AS
-WITH params AS (
-    -- Parâmetros da convenção OddVision v1 (docs/metrics.md, M5): mudar a convenção é mudar estes dois números.
-    SELECT 48.0::double precision AS min_start_x, 10.0::double precision AS min_gain_yd
-), base AS (
+WITH base AS (
     SELECT ev.event_id,
            ev.match_id,
            ev.idx,
@@ -63,4 +60,4 @@ SELECT b.*,
                 OR (NOT (b.x >= 102 AND b.y BETWEEN 18 AND 62) AND (b.end_x >= 102 AND b.end_y BETWEEN 18 AND 62))),
            false) AS is_progressivo
 FROM base b
-CROSS JOIN params pr;
+CROSS JOIN analytics.convention_params pr;

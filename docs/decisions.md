@@ -38,6 +38,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D30 | Finalizações como view de eventos (`shot_events`) e M2/M3 sobre ela | Aceita |
 | D31 | Passes como view de eventos (`pass_events`) e M4 sobre ela | Aceita |
 | D32 | Passes progressivos (M5): a convenção mora em `pass_events` | Aceita |
+| D33 | Conduções progressivas (M6) e parâmetros compartilhados da convenção | Aceita |
 
 ---
 
@@ -458,8 +459,17 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 
 - **Contexto:** M5 é a **convenção OddVision v1** (D09). A mesma regra alimenta a contagem por time e por jogador e, no Passo 12, o mapa de passes progressivos.
 - **Decisão:**
-  - `pass_events.is_progressivo` (coluna nova no fim) implementa a fórmula de `docs/metrics.md` com os dois parâmetros numa CTE `params` (`min_start_x = 48`, `min_gain_yd = 10`); `passes_progressivos` só conta a marcação. Mudar a convenção é mudar esses números num único lugar.
+  - `pass_events.is_progressivo` (coluna nova no fim) implementa a fórmula de `docs/metrics.md` com os dois parâmetros da view `analytics.convention_params` (`min_start_x = 48`, `min_gain_yd = 10`, arquivo `01_convention_params.sql`); `passes_progressivos` só conta a marcação. Mudar a convenção é mudar esses números num único lugar (a M6 lê os mesmos, D33).
   - **A fórmula governa os casos de borda:** um passe de dentro da área para dentro da área com ganho de pelo menos 10 jardas (por exemplo, de `x = 102` a `x = 120`) **é** progressivo, pelo critério de distância. O que a convenção exclui é a *entrada* na área quando o passe já começa dentro (um passe curto dentro da área não conta). O notebook de referência da final aplica a mesma fórmula, e os dois concordam (56 e 39).
   - Valores ausentes: se `x`/`y` de início faltarem, o passe não é progressivo (`COALESCE(..., false)`), nunca `NULL`.
   - As contagens de M4 passaram a usar `count(*) FILTER (...)` sobre todos os passes, para M4 e M5 compartilharem um agrupamento.
 - **Validação:** 36 testes (fronteiras de ganho 9,99/10,00/10,01, de início 47,9/48,0/48,1, da área em `x = 102` e `y = 18`/`62` incluindo 101,99, 17,99 e 62,01; incompletos, bolas paradas, período 5; Σ jogadores = time; subconjunto dos completos de jogo corrido), a referência da final (Argentina 56, França 39) e 18 mutações (cada parâmetro, cada comparação, a geometria e as exclusões), todas detectadas. A inspeção visual de 20 passes, prevista em `docs/metrics.md`, fica para o mapa do Passo 12.
+
+## D33 — Conduções progressivas (M6) e parâmetros compartilhados da convenção
+
+- **Contexto:** M6 aplica "a mesma regra geométrica da M5" às conduções (D09). Se cada view tivesse os seus próprios números 48 e 10, as duas métricas poderiam divergir sem que ninguém notasse.
+- **Decisão:**
+  - `analytics.convention_params` (`01_convention_params.sql`) é uma view de uma linha com `min_start_x` e `min_gain_yd`; `pass_events` e `carry_events` fazem `CROSS JOIN` com ela. Isto substitui a CTE `params` que a D32 descrevia dentro de `pass_events`.
+  - `analytics.carry_events` (`07_carry_events.sql`) tem uma linha por `Carry` e `is_progressivo`: período 1 a 4, início em `x ≥ min_start_x` e (ganho ≥ `min_gain_yd` OU entrada na área). **Não há filtro de "completa"**: a condução não tem resultado na fonte.
+  - `conducoes_progressivas` (time e jogador) conta a marcação. Os casos de borda seguem os da M5 (D32): de dentro da área para dentro com ganho de 10 jardas ou mais é progressiva.
+- **Validação:** 27 testes (as mesmas fronteiras da M5 aplicadas a `Carry`; Σ jogadores = time; condução e passe não se misturam; um teste que garante que passe e condução com a mesma geometria recebem a mesma marcação), a referência da final (Argentina 30, França 31) e 18 mutações (parâmetros, comparações, geometria, período, agregações e duas da M5), todas detectadas.

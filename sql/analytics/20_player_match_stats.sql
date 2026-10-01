@@ -7,6 +7,7 @@
 --   M3  xg, npxg, finalizacoes_sem_penalti, npxg_por_finalizacao_sem_penalti
 --   M4  passes_tentados, passes_completos, pct_acerto_passes
 --   M5  passes_progressivos
+--   M6  conducoes_progressivas
 --
 -- Esta view nunca lê colunas JSONB (D05) e nunca grava nada.
 
@@ -40,6 +41,12 @@ WITH played_matches AS (
            count(*) FILTER (WHERE is_progressivo) AS progressive
     FROM analytics.pass_events
     GROUP BY match_id, player_id
+), carry_stats AS (
+    -- M6 do jogador, com as mesmas regras do time (analytics.team_match_stats).
+    SELECT match_id, player_id, count(*) AS progressive
+    FROM analytics.carry_events
+    WHERE is_progressivo
+    GROUP BY match_id, player_id
 )
 SELECT l.match_id,
        l.team_id,
@@ -57,10 +64,12 @@ SELECT l.match_id,
        COALESCE(pst.attempted, 0)::integer AS passes_tentados,
        COALESCE(pst.completed, 0)::integer AS passes_completos,
        CASE WHEN COALESCE(pst.attempted, 0) = 0 THEN NULL ELSE 100.0 * pst.completed / pst.attempted END::double precision AS pct_acerto_passes,
-       COALESCE(pst.progressive, 0)::integer AS passes_progressivos
+       COALESCE(pst.progressive, 0)::integer AS passes_progressivos,
+       COALESCE(cst.progressive, 0)::integer AS conducoes_progressivas
 FROM core.lineups l
 JOIN played_matches pm ON pm.match_id = l.match_id
 JOIN core.players p ON p.player_id = l.player_id
 LEFT JOIN shot_goals g ON g.match_id = l.match_id AND g.player_id = l.player_id
 LEFT JOIN shot_stats ss ON ss.match_id = l.match_id AND ss.player_id = l.player_id
-LEFT JOIN pass_stats pst ON pst.match_id = l.match_id AND pst.player_id = l.player_id;
+LEFT JOIN pass_stats pst ON pst.match_id = l.match_id AND pst.player_id = l.player_id
+LEFT JOIN carry_stats cst ON cst.match_id = l.match_id AND cst.player_id = l.player_id;

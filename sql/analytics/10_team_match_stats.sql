@@ -6,6 +6,7 @@
 --   M3  xg, npxg, finalizacoes_sem_penalti, npxg_por_finalizacao_sem_penalti
 --   M4  passes_tentados, passes_completos, pct_acerto_passes
 --   M5  passes_progressivos
+--   M6  conducoes_progressivas
 --
 -- Esta view nunca lê colunas JSONB (D05) e nunca grava nada.
 
@@ -56,6 +57,12 @@ WITH played_matches AS (
            count(*) FILTER (WHERE is_progressivo) AS progressive
     FROM analytics.pass_events
     GROUP BY match_id, team_id
+), carry_stats AS (
+    -- M6: conduções progressivas, marcadas em analytics.carry_events (mesma convenção da M5).
+    SELECT match_id, team_id, count(*) AS progressive
+    FROM analytics.carry_events
+    WHERE is_progressivo
+    GROUP BY match_id, team_id
 )
 SELECT mt.match_id,
        mt.team_id,
@@ -79,11 +86,14 @@ SELECT mt.match_id,
        COALESCE(pst.completed, 0)::integer AS passes_completos,
        CASE WHEN COALESCE(pst.attempted, 0) = 0 THEN NULL ELSE 100.0 * pst.completed / pst.attempted END::double precision AS pct_acerto_passes,
        -- M5: passes progressivos (convenção OddVision v1)
-       COALESCE(pst.progressive, 0)::integer AS passes_progressivos
+       COALESCE(pst.progressive, 0)::integer AS passes_progressivos,
+       -- M6: conduções progressivas (convenção OddVision v1)
+       COALESCE(cst.progressive, 0)::integer AS conducoes_progressivas
 FROM match_teams mt
 JOIN core.teams t ON t.team_id = mt.team_id
 LEFT JOIN shot_goals g ON g.match_id = mt.match_id AND g.team_id = mt.team_id
 LEFT JOIN own_goals og ON og.match_id = mt.match_id AND og.team_id = mt.team_id
 LEFT JOIN shootouts so ON so.match_id = mt.match_id
 LEFT JOIN shot_stats ss ON ss.match_id = mt.match_id AND ss.team_id = mt.team_id
-LEFT JOIN pass_stats pst ON pst.match_id = mt.match_id AND pst.team_id = mt.team_id;
+LEFT JOIN pass_stats pst ON pst.match_id = mt.match_id AND pst.team_id = mt.team_id
+LEFT JOIN carry_stats cst ON cst.match_id = mt.match_id AND cst.team_id = mt.team_id;
