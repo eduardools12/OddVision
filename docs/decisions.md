@@ -27,6 +27,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D19 | `pyproject.toml` + layout `src/` + instalação editável | Aceita |
 | D20 | Versões fixadas das dependências diretas | Aceita |
 | D21 | Política de imutabilidade da ingestão bruta | Aceita |
+| D22 | Acesso ao banco, DDL repetível e isolamento dos testes de integração | Aceita |
 
 ---
 
@@ -279,3 +280,23 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
   - Um erro de integridade nunca apaga nem sobrescreve nada. O autor decide o que fazer (restaurar ou remover o arquivo manualmente).
   - Se o manifest for perdido, a ingestão para em vez de "adotar" os arquivos. É intencional.
   - A ingestão é sequencial: os 130 arquivos (192 MB) levam cerca de 1min40 e a 2ª execução leva cerca de 2 segundos.
+
+## D22 — Acesso ao banco, DDL repetível e isolamento dos testes de integração
+
+- **Contexto:** o Passo 4 cria os bancos e o DDL. O servidor desta máquina usa a **porta 1212** (herdada da instalação antiga), e os testes de integração precisam recriar schemas sem nunca tocar nos dados reais.
+- **Decisão:**
+  - **Credenciais em `config/database.toml`** (fora do Git; o modelo versionado é `database.example.toml`), com `host`, `port`, `user`, `password` e os nomes `main` e `test`. A leitura aceita arquivos com BOM (editores do Windows os gravam assim).
+  - **O pipeline usa a role `oddvision_app`**: sem privilégio de superusuário, dona dos dois bancos. O superusuário `postgres` só é usado na criação inicial.
+  - **`databases.test` deve terminar em `_test`.** É validado ao carregar a configuração e conferido de novo no servidor (`current_database()`) antes de qualquer `DROP SCHEMA`, que só existe no código de teste.
+  - **Sem `config/database.toml`, os testes de integração são pulados** (com o motivo). **Com o arquivo presente e a conexão falhando, eles falham**: erro de configuração nunca passa por "tudo verde".
+  - **`init-db` só cria.** Aplica `sql/ddl/NNN_*.sql` em ordem, um arquivo por transação, usando apenas `CREATE ... IF NOT EXISTS`. Um teste estático proíbe `DROP`, `TRUNCATE` e `DELETE FROM` no DDL.
+  - **O DDL é validado contra `docs/data_dictionary.md`** por um teste que lê as colunas do próprio documento (nome, tipo, obrigatoriedade e ordem), sem copiá-las para o teste.
+  - **`shots.key_pass_id` é `DEFERRABLE INITIALLY DEFERRED`.** Um teste de comportamento mostrou que, com a chave imediata, apagar uma partida (a base da carga por partida, D06) falha: o PostgreSQL confere a chave logo depois de apagar o passe, antes de a cascata remover a finalização. Adiar a conferência para o `COMMIT` mantém a garantia e permite a carga.
+- **Alternativas:**
+  - *`ON DELETE SET NULL` em `key_pass_id`*: apagaria a informação silenciosamente.
+  - *`DROP` + recriar no `init-db`*: destrutivo, contra o D17.
+  - *Rodar tudo com o superusuário*: privilégio maior que o necessário.
+- **Consequências:**
+  - `init-db` não faz `ALTER`: mudar uma tabela que já existe em um banco com dados exigirá uma migração explícita (a decidir quando acontecer).
+  - Não há índices além de chaves primárias e `UNIQUE`. Só serão criados se a medição nos Passos 10 e 13 justificar.
+  - Um servidor PostgreSQL descartável (pasta de dados e porta próprias, fora do servidor do autor) foi usado para validar o DDL e os testes antes de o autor criar os bancos reais.

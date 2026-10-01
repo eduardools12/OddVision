@@ -51,7 +51,28 @@ def manifest_path(root: Path) -> Path:
     return root / "data" / "manifests" / "statsbomb_manifest.csv"
 
 
-def _require(table: dict, section: str, key: str, expected_type: type):
+def database_config_path(root: Path) -> Path:
+    """Credenciais do PostgreSQL. NÃO é versionado (.gitignore); o modelo é database.example.toml."""
+    return root / "config" / "database.toml"
+
+
+def ddl_dir(root: Path) -> Path:
+    """Pasta dos arquivos de DDL (001_*.sql, 002_*.sql…), aplicados em ordem pelo `init-db`."""
+    return root / "sql" / "ddl"
+
+
+def read_toml(path: Path) -> dict:
+    try:
+        # utf-8-sig: aceita arquivos com BOM (editores do Windows e o PowerShell 5.1 os gravam assim).
+        return tomllib.loads(path.read_text(encoding="utf-8-sig"))
+    except FileNotFoundError:
+        raise ConfigError(f"arquivo de configuração não encontrado: {path}") from None
+    except tomllib.TOMLDecodeError as exc:
+        raise ConfigError(f"TOML inválido em {path}: {exc}") from exc
+
+
+def require(table: dict, section: str, key: str, expected_type: type):
+    """Devolve table[section][key], exigindo que exista e tenha o tipo esperado."""
     try:
         value = table[section][key]
     except (KeyError, TypeError):
@@ -62,26 +83,20 @@ def _require(table: dict, section: str, key: str, expected_type: type):
 
 
 def load_selection(path: Path) -> Selection:
-    try:
-        with open(path, "rb") as f:
-            data = tomllib.load(f)
-    except FileNotFoundError:
-        raise ConfigError(f"arquivo de configuração não encontrado: {path}") from None
-    except tomllib.TOMLDecodeError as exc:
-        raise ConfigError(f"TOML inválido em {path}: {exc}") from exc
+    data = read_toml(path)
 
-    repo = _require(data, "source", "repo", str)
+    repo = require(data, "source", "repo", str)
     if not _REPO_PATTERN.fullmatch(repo):
         raise ConfigError(f"source.repo deve ter o formato 'dono/repositorio', recebido {repo!r}")
 
-    commit = _require(data, "source", "commit", str)
+    commit = require(data, "source", "commit", str)
     if not _COMMIT_PATTERN.fullmatch(commit):
         raise ConfigError(
             "source.commit deve ser o SHA completo do commit (40 caracteres hexadecimais "
             f"minúsculos); um nome de branch não fixa a versão. Recebido {commit!r}"
         )
 
-    match_ids = _require(data, "load", "match_ids", list)
+    match_ids = require(data, "load", "match_ids", list)
     if not all(isinstance(m, int) and not isinstance(m, bool) for m in match_ids):
         raise ConfigError(f"load.match_ids deve ser uma lista de inteiros, recebido {match_ids!r}")
     repeated = sorted({m for m in match_ids if match_ids.count(m) > 1})
@@ -91,7 +106,7 @@ def load_selection(path: Path) -> Selection:
     return Selection(
         source_repo=repo,
         source_commit=commit,
-        competition_id=_require(data, "competition", "competition_id", int),
-        season_id=_require(data, "competition", "season_id", int),
+        competition_id=require(data, "competition", "competition_id", int),
+        season_id=require(data, "competition", "season_id", int),
         load_match_ids=tuple(match_ids),
     )

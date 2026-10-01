@@ -58,3 +58,41 @@ def test_a_subcommand_is_required():
     with pytest.raises(SystemExit) as exc:
         main([])
     assert exc.value.code == 2
+
+
+# --------------------------------------------------------------------------- init-db (sem banco)
+
+PASSWORD = "s3cr3t-Ünico"
+
+
+def write_database_toml(root, port=1212):
+    (root / "config").mkdir(exist_ok=True)
+    (root / "config" / "database.toml").write_text(
+        f'[connection]\nhost = "localhost"\nport = {port}\nuser = "oddvision_app"\npassword = "{PASSWORD}"\n\n'
+        '[databases]\nmain = "oddvision"\ntest = "oddvision_test"\n',
+        encoding="utf-8",
+    )
+
+
+def test_init_db_reports_a_missing_database_config(tmp_path, capsys):
+    assert main(["init-db"], root=tmp_path) == 1
+    assert "não encontrado" in capsys.readouterr().err
+
+
+def test_init_db_reports_a_missing_ddl_folder(tmp_path, capsys):
+    write_database_toml(tmp_path)
+    assert main(["init-db"], root=tmp_path) == 1
+    assert "DDL" in capsys.readouterr().err
+
+
+def test_init_db_reports_an_unreachable_server_without_leaking_the_password(tmp_path, capsys):
+    write_database_toml(tmp_path, port=1)  # nada escuta na porta 1
+    (tmp_path / "sql" / "ddl").mkdir(parents=True)
+    (tmp_path / "sql" / "ddl" / "001_x.sql").write_text("SELECT 1;", encoding="utf-8")
+
+    assert main(["init-db"], root=tmp_path) == 1
+
+    captured = capsys.readouterr()
+    assert "não foi possível" in captured.err
+    assert "oddvision" in captured.err and "localhost:1" in captured.err
+    assert PASSWORD not in captured.err and PASSWORD not in captured.out

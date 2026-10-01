@@ -218,7 +218,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 
 **Chaves e restrições:**
 - **PK:** `event_id`
-- **FK:** `event_id` → `events` (`ON DELETE CASCADE`); `key_pass_id` → `events`
+- **FK:** `event_id` → `events` (`ON DELETE CASCADE`); `key_pass_id` → `events` (**`DEFERRABLE INITIALLY DEFERRED`**: conferida no `COMMIT`; sem isso, apagar uma partida falha porque o banco checa a chave antes de a cascata remover a finalização — descoberto no Passo 4, veja [D22](decisions.md))
 - **CHECK:** `statsbomb_xg BETWEEN 0 AND 1`
 
 ---

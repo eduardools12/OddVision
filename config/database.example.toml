@@ -1,0 +1,17 @@
+# Modelo de config/database.toml.
+# O arquivo real NÃO é versionado (está no .gitignore): copie este modelo e troque a senha.
+#   Copy-Item config\database.example.toml config\database.toml
+
+[connection]
+host = "localhost"
+# Porta do servidor desta máquina (o padrão do PostgreSQL seria 5432).
+port = 1212
+# Role SEM privilégio de superusuário, dona dos bancos abaixo. Nunca use o superusuário 'postgres' aqui.
+user = "oddvision_app"
+password = "troque-esta-senha"
+
+[databases]
+# Banco de trabalho do pipeline e do app.
+main = "oddvision"
+# Banco dos testes de integração. O nome DEVE terminar em _test: os testes recriam os schemas dele.
+test = "oddvision_test"

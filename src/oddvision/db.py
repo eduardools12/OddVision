@@ -1,0 +1,96 @@
+"""Acesso ao PostgreSQL: configuração, engine e aplicação do DDL (D10, D11).
+
+SQLAlchemy é usado só no nível Core (sem ORM): o SQL continua explícito e visível.
+A senha nunca aparece em repr/str/log: `DatabaseConfig` a esconde e a URL do engine a mascara.
+"""
+
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from pathlib import Path
+
+from sqlalchemy import URL, Engine, create_engine, text
+
+from oddvision.config import ConfigError, read_toml, require
+
+
+@dataclass(frozen=True)
+class DatabaseConfig:
+    host: str
+    port: int
+    user: str
+    password: str = field(repr=False)  # fora do repr: não vaza em logs nem em mensagens de erro
+    main_db: str  # banco de trabalho do pipeline
+    test_db: str  # banco dos testes de integração (sempre termina em _test)
+
+
+def load_database_config(path: Path) -> DatabaseConfig:
+    data = read_toml(path)
+
+    config = DatabaseConfig(
+        host=require(data, "connection", "host", str),
+        port=require(data, "connection", "port", int),
+        user=require(data, "connection", "user", str),
+        password=require(data, "connection", "password", str),
+        main_db=require(data, "databases", "main", str),
+        test_db=require(data, "databases", "test", str),
+    )
+    if not config.password:
+        raise ConfigError("connection.password não pode ser vazio")
+    if not config.test_db.endswith("_test"):
+        # Os testes de integração RECRIAM os schemas do banco de testes: o nome precisa deixar claro.
+        raise ConfigError(f"databases.test deve terminar em '_test' (recebido {config.test_db!r})")
+    return config
+
+
+def make_engine(config: DatabaseConfig, database: str) -> Engine:
+    """Engine do SQLAlchemy para `database`. Não conecta até o primeiro uso."""
+    url = URL.create(
+        "postgresql+psycopg",  # psycopg 3
+        username=config.user,
+        password=config.password,  # URL.create cuida de escapar caracteres especiais
+        host=config.host,
+        port=config.port,
+        database=database,
+    )
+    return create_engine(
+        url,
+        connect_args={"connect_timeout": 10, "client_encoding": "utf8"},
+        pool_pre_ping=True,
+    )
+
+
+def ddl_files(directory: Path) -> list[Path]:
+    """Arquivos .sql do DDL em ordem de nome (001_, 002_…)."""
+    if not directory.is_dir():
+        raise ConfigError(f"pasta de DDL não encontrada: {directory}")
+    files = sorted(directory.glob("*.sql"), key=lambda p: p.name)
+    if not files:
+        raise ConfigError(f"nenhum arquivo .sql em {directory}")
+    return files
+
+
+def apply_ddl(engine: Engine, directory: Path) -> list[str]:
+    """Aplica os arquivos de DDL em ordem, um por transação. Devolve os nomes aplicados.
+
+    O DDL só cria (IF NOT EXISTS) e nunca apaga: repetir é seguro e preserva os dados.
+    O psycopg 3 aceita vários comandos numa chamada quando não há parâmetros (é o caso aqui).
+    """
+    applied = []
+    for path in ddl_files(directory):
+        with engine.begin() as conn:
+            conn.exec_driver_sql(path.read_text(encoding="utf-8"))
+        applied.append(path.name)
+    return applied
+
+
+def core_table_names(engine: Engine) -> list[str]:
+    with engine.connect() as conn:
+        return list(
+            conn.execute(
+                text(
+                    "SELECT table_name FROM information_schema.tables "
+                    "WHERE table_schema = 'core' AND table_type = 'BASE TABLE' ORDER BY table_name"
+                )
+            ).scalars()
+        )
