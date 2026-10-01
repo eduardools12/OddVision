@@ -42,6 +42,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D34 | Passes para a área (M7) | Aceita |
 | D35 | xG acumulado (M8): `xg_timeline` com eixo de tempo real | Aceita |
 | D36 | Relógio de eventos, escalações e linha do tempo da partida; contrato da camada analytics | Aceita |
+| D37 | Aplicação Streamlit: consulta, apresentação e cache em camadas separadas | Aceita |
 
 ---
 
@@ -504,3 +505,15 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
   - `tests/integration/test_analytics_contract.py` fixa o **contrato da camada**: o conjunto exato de 11 views (nada além de views), as colunas de `team_match_stats` e `player_match_stats` na ordem acordada, as colunas de identidade das views de evento, tipos numéricos nas métricas e booleanos em toda marcação `is_*`.
 - **Validação:** 17 testes sintéticos de `match_views` (colunas, titulares e reservas, cada tipo de cartão, substituição, disputa fora, ordem cronológica, gols da linha do tempo = `gols` do M1) e 15 de contrato; na final real, os 6 gols nos minutos públicos (Argentina 23' pênalti, 36' e 108'; França 80' pênalti, 81' e 118' pênalti, todos de Mbappé), os cartões e substituições conciliados com o `core`, 11 titulares por lado; em todas as partidas carregadas, gols da linha do tempo = `gols` e 11 titulares por time. 30 mutações (relógio, xG acumulado, linha do tempo e escalações), todas detectadas.
 - **Fora do que o plano pedia:** a "revisão `data:validate-data`" prevista no plano 10.8 **não foi executada** como skill; a verificação foi feita pelas três camadas de prova de D29 (fronteiras sintéticas, referência da final e invariantes) e pelas mutações.
+
+## D37 — Aplicação Streamlit: consulta, apresentação e cache em camadas separadas
+
+- **Contexto:** o Passo 11 entrega a primeira página (partida, placar, estatísticas, escalações e finalizações). A aplicação só pode conhecer a camada `analytics` e precisa ser testável sem abrir um navegador.
+- **Decisão:** três camadas com uma responsabilidade cada.
+  - `oddvision.app_queries`: o único lugar com SQL da aplicação (um dicionário `QUERIES` que só nomeia `analytics.*`). Recebe uma conexão e devolve DataFrames ou um dicionário **sem NaN e sem tipos do NumPy** (NULL vira `None`).
+  - `oddvision.presentation`: funções puras (rótulos, placar, formatação em português com vírgula decimal, tabela comparativa, escalações, finalizações). Sem banco e sem Streamlit.
+  - `oddvision.app_support` e `app/`: o Streamlit. O engine é `st.cache_resource` e as consultas são `st.cache_data(ttl=600)`; uma lista fixa de nomes de consulta evita executar função arbitrária. Falta de configuração, banco fora do ar e views ausentes viram mensagem útil, não traceback.
+- **Regras da apresentação:** o placar é o **oficial da fonte, sem a disputa de pênaltis**, que aparece à parte (D08). Passes e conduções progressivas levam o selo **"OddVision v1"** (D09) e a página explica a convenção. Partida sem eventos mostra um aviso, sem estatísticas. Se o placar reconstruído pelos eventos diferir do oficial, a página avisa. A disputa aparece na tabela de finalizações marcada como "Disputa", por último.
+- **Validação:** 22 testes unitários da apresentação, 9 testes das consultas (banco de testes), 6 testes de contrato (a aplicação nunca cita `core.`, `extra` nem escreve SQL fora de `app_queries`; selo e créditos presentes) e 6 testes de ponta a ponta com `AppTest` contra o banco principal (final 3–3 com disputa 4–2, 11 titulares por lado, 56/39 passes progressivos, 30 finalizações em jogo + 8 da disputa; as outras duas sentinelas abrem; uma partida sem eventos mostra o aviso). Conferência visual no navegador interno: placar, abas, tabela de estatísticas, escalações (Messi nº 10, Lloris nº 1) e finalizações (5' Mac Allister, defendida, xG 0,02).
+- **Outras mudanças:** `.claude/` entrou no `.gitignore` (configuração local do preview, `launch.json`) e o `README.md` ganhou o status atual e os comandos do pipeline.
+- **Consequências:** o Passo 12 acrescenta mapas e gráficos em `oddvision.viz`, e a transformação de coordenadas (espelhar o visitante) continua só na apresentação.
