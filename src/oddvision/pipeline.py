@@ -1,7 +1,7 @@
 """CLI do pipeline: `python -m oddvision.pipeline <comando>`.
 
-Comandos disponíveis: `ingest`, `init-db` e `load` (por enquanto só P2: competições, times e partidas).
-Os demais (check, all) e as cargas de escalações e eventos entram nos Passos 6 a 9.
+Comandos disponíveis: `ingest`, `init-db` e `load` (por enquanto P2 e P3: competições, times, partidas e escalações).
+Os demais (check, all) e a carga de eventos entram nos Passos 7 a 9.
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from oddvision.config import (
 )
 from oddvision.db import apply_ddl, core_table_names, ddl_files, load_database_config, make_engine
 from oddvision.ingest import IngestError, http_download, run_ingest
-from oddvision.load import load_p2
+from oddvision.load import LoadError, load_matches, load_p2
 from oddvision.transform.common import TransformError
 
 
@@ -93,7 +93,8 @@ def _cmd_load(root: Path) -> int:
     engine = make_engine(config, config.main_db)
     try:
         result = load_p2(engine, selection, raw_dir(root), manifest_path(root))
-    except (IngestError, TransformError) as exc:
+        lineups = load_matches(engine, selection, raw_dir(root), manifest_path(root))
+    except (IngestError, TransformError, LoadError) as exc:
         print(f"erro: {exc}", file=sys.stderr)
         return 1
     except SQLAlchemyError as exc:
@@ -109,6 +110,19 @@ def _cmd_load(root: Path) -> int:
     print(f"banco: {config.main_db} em {config.host}:{config.port} (usuário {config.user})")
     print(f"competitions: {result.competitions}, teams: {result.teams}, matches: {result.matches}")
     print(f"ingestion_log: {result.log_files} arquivos registrados")
+    for match in lineups.matches:
+        print(
+            f"lineups: partida {match.match_id}: {match.players} jogadores "
+            f"({match.starters} titulares, {match.played} entraram em campo)"
+        )
+    print(f"players: {lineups.players}")
+    for conflict in lineups.conflicts:  # não é erro: a regra do valor mais frequente já decidiu
+        seen = ", ".join(f"{value!r} em {n}" for value, n in sorted(conflict.counts.items(), key=lambda kv: -kv[1]))
+        print(
+            f"aviso: jogador {conflict.player_id}: {conflict.attribute} diverge entre arquivos ({seen}); "
+            f"gravado {conflict.chosen!r}",
+            file=sys.stderr,
+        )
     return 0
 
 
@@ -122,7 +136,7 @@ def main(
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("ingest", help="baixa os JSONs brutos do StatsBomb para data/raw/ e gera o manifest")
     commands.add_parser("init-db", help="cria os schemas core e analytics no banco principal (repetível; nunca apaga dados)")
-    commands.add_parser("load", help="carrega competições, times e partidas no core (repetível; tudo ou nada)")
+    commands.add_parser("load", help="carrega competições, times, partidas e escalações no core (repetível)")
 
     args = parser.parse_args(argv)
     if args.command == "ingest":

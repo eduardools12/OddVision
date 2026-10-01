@@ -92,7 +92,8 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 - **PK:** `player_id`
 - **Carga:** upsert.
 - **Qualidade:** o mesmo `player_id` com nomes diferentes entre arquivos gera o aviso C11.
-- **Achado A2 (Passo 2):** na Copa 2022, 4 jogadores têm grafias diferentes entre arquivos (por exemplo, "Phil Foden" / "Philip Foden"). A regra determinística para escolher o nome gravado será decidida no Passo 6. A proposta é o nome mais frequente entre os arquivos.
+- **Achado A2 (Passo 2) e a regra decidida no Passo 6 ([D24](decisions.md)):** o mesmo `player_id` pode ter valores diferentes entre arquivos. Para **cada atributo** (`player_name`, `player_nickname`, `country_name`) vale o **valor mais frequente entre os 64 arquivos de escalação** (não só entre as partidas carregadas, para o valor não mudar quando mais partidas forem carregadas). Nulo não compete com um valor real; empate fica com a ordem alfabética. Todo conflito vira um **aviso** na carga (não é erro).
+- **Conflitos na Copa 2022 (7):** nome de 4 jogadores (Foden, Pino, N'Diaye, Mabil), apelido de 2 (Turner, Otávio, nulo em alguns arquivos) e **país de 1**: Anass Zaroury (131037) aparece como Marrocos em 3 arquivos e Bélgica em 4, e a regra grava `Belgium`. Ele joga pelo Marrocos: **o time de um jogador em uma partida vem de `lineups.team_id`, nunca de `players.country_name`** (que é só informativo e não é usado por nenhuma métrica do MVP).
 
 ---
 

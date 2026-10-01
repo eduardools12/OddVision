@@ -1,0 +1,294 @@
+[
+  {
+    "team_id": 771,
+    "team_name": "France",
+    "lineup": [
+      {
+        "player_id": 3009,
+        "player_name": "Kylian Mbappé Lottin",
+        "player_nickname": "Kylian Mbappé",
+        "jersey_number": 10,
+        "country": {
+          "id": 78,
+          "name": "France"
+        },
+        "cards": [],
+        "positions": [
+          {
+            "position_id": 21,
+            "position": "Left Wing",
+            "from": "00:00",
+            "to": "41:20",
+            "from_period": 1,
+            "to_period": 1,
+            "start_reason": "Starting XI",
+            "end_reason": "Tactical Shift"
+          },
+          {
+            "position_id": 23,
+            "position": "Center Forward",
+            "from": "41:20",
+            "to": "64:09",
+            "from_period": 1,
+            "to_period": 2,
+            "start_reason": "Tactical Shift",
+            "end_reason": "Tactical Shift"
+          },
+          {
+            "position_id": 21,
+            "position": "Left Wing",
+            "from": "64:09",
+            "to": "72:52",
+            "from_period": 2,
+            "to_period": 2,
+            "start_reason": "Tactical Shift",
+            "end_reason": "Tactical Shift"
+          },
+          {
+            "position_id": 24,
+            "position": "Left Center Forward",
+            "from": "72:52",
+            "to": null,
+            "from_period": 2,
+            "to_period": null,
+            "start_reason": "Tactical Shift",
+            "end_reason": "Final Whistle"
+          }
+        ]
+      },
+      {
+        "player_id": 2972,
+        "player_name": "Marcus Thuram",
+        "player_nickname": null,
+        "jersey_number": 26,
+        "country": {
+          "id": 78,
+          "name": "France"
+        },
+        "cards": [
+          {
+            "time": "86:24",
+            "card_type": "Yellow Card",
+            "reason": "Foul Committed",
+            "period": 2
+          }
+        ],
+        "positions": [
+          {
+            "position_id": 23,
+            "position": "Center Forward",
+            "from": "41:01",
+            "to": "41:20",
+            "from_period": 1,
+            "to_period": 1,
+            "start_reason": "Substitution - On (Tactical)",
+            "end_reason": "Tactical Shift"
+          },
+          {
+            "position_id": 21,
+            "position": "Left Wing",
+            "from": "41:20",
+            "to": "64:09",
+            "from_period": 1,
+            "to_period": 2,
+            "start_reason": "Tactical Shift",
+            "end_reason": "Tactical Shift"
+          },
+          {
+            "position_id": 23,
+            "position": "Center Forward",
+            "from": "64:09",
+            "to": "72:52",
+            "from_period": 2,
+            "to_period": 2,
+            "start_reason": "Tactical Shift",
+            "end_reason": "Tactical Shift"
+          },
+          {
+            "position_id": 22,
+            "position": "Right Center Forward",
+            "from": "72:52",
+            "to": "74:05",
+            "from_period": 2,
+            "to_period": 2,
+            "start_reason": "Tactical Shift",
+            "end_reason": "Tactical Shift"
+          },
+          {
+            "position_id": 16,
+            "position": "Left Midfield",
+            "from": "74:05",
+            "to": null,
+            "from_period": 2,
+            "to_period": null,
+            "start_reason": "Tactical Shift",
+            "end_reason": "Final Whistle"
+          }
+        ]
+      },
+      {
+        "player_id": 3379,
+        "player_name": "Alphonse Areola",
+        "player_nickname": null,
+        "jersey_number": 23,
+        "country": {
+          "id": 78,
+          "name": "France"
+        },
+        "cards": [],
+        "positions": []
+      }
+    ]
+  },
+  {
+    "team_id": 779,
+    "team_name": "Argentina",
+    "lineup": [
+      {
+        "player_id": 5503,
+        "player_name": "Lionel Andrés Messi Cuccittini",
+        "player_nickname": "Lionel Messi",
+        "jersey_number": 10,
+        "country": {
+          "id": 11,
+          "name": "Argentina"
+        },
+        "cards": [],
+        "positions": [
+          {
+            "position_id": 17,
+            "position": "Right Wing",
+            "from": "00:00",
+            "to": "115:32",
+            "from_period": 1,
+            "to_period": 4,
+            "start_reason": "Starting XI",
+            "end_reason": "Tactical Shift"
+          },
+          {
+            "position_id": 22,
+            "position": "Right Center Forward",
+            "from": "115:32",
+            "to": "28:11",
+            "from_period": 4,
+            "to_period": 1,
+            "start_reason": "Tactical Shift",
+            "end_reason": "Player Off"
+          },
+          {
+            "position_id": 17,
+            "position": "Right Wing",
+            "from": "28:19",
+            "to": null,
+            "from_period": 1,
+            "to_period": null,
+            "start_reason": "Player On",
+            "end_reason": "Final Whistle"
+          }
+        ]
+      },
+      {
+        "player_id": 19597,
+        "player_name": "Marcos Javier Acuña",
+        "player_nickname": "Marcos Acuña",
+        "jersey_number": 8,
+        "country": {
+          "id": 11,
+          "name": "Argentina"
+        },
+        "cards": [
+          {
+            "time": "97:33",
+            "card_type": "Yellow Card",
+            "reason": "Foul Committed",
+            "period": 2
+          }
+        ],
+        "positions": [
+          {
+            "position_id": 21,
+            "position": "Left Wing",
+            "from": "102:16",
+            "to": "115:32",
+            "from_period": 3,
+            "to_period": 4,
+            "start_reason": "Tactical Shift",
+            "end_reason": "Tactical Shift"
+          },
+          {
+            "position_id": 15,
+            "position": "Left Center Midfield",
+            "from": "115:32",
+            "to": "120:48",
+            "from_period": 4,
+            "to_period": 4,
+            "start_reason": "Tactical Shift",
+            "end_reason": "Tactical Shift"
+          },
+          {
+            "position_id": 8,
+            "position": "Left Wing Back",
+            "from": "120:48",
+            "to": "63:51",
+            "from_period": 4,
+            "to_period": 2,
+            "start_reason": "Tactical Shift",
+            "end_reason": "Substitution - On (Tactical)"
+          },
+          {
+            "position_id": 21,
+            "position": "Left Wing",
+            "from": "63:51",
+            "to": null,
+            "from_period": 2,
+            "to_period": null,
+            "start_reason": "Substitution - On (Tactical)",
+            "end_reason": "Final Whistle"
+          }
+        ]
+      },
+      {
+        "player_id": 6909,
+        "player_name": "Damián Emiliano Martínez",
+        "player_nickname": "Emiliano Martínez",
+        "jersey_number": 23,
+        "country": {
+          "id": 11,
+          "name": "Argentina"
+        },
+        "cards": [
+          {
+            "time": "12:57",
+            "card_type": "Yellow Card",
+            "reason": "Bad Behaviour",
+            "period": 5
+          }
+        ],
+        "positions": [
+          {
+            "position_id": 1,
+            "position": "Goalkeeper",
+            "from": "00:00",
+            "to": null,
+            "from_period": 1,
+            "to_period": null,
+            "start_reason": "Starting XI",
+            "end_reason": "Final Whistle"
+          }
+        ]
+      },
+      {
+        "player_id": 6312,
+        "player_name": "Franco Armani",
+        "player_nickname": null,
+        "jersey_number": 1,
+        "country": {
+          "id": 11,
+          "name": "Argentina"
+        },
+        "cards": [],
+        "positions": []
+      }
+    ]
+  }
+]

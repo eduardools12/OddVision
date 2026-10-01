@@ -3,8 +3,10 @@
 from __future__ import annotations
 
 import copy
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping, Sequence
 from typing import Any
+
+import pandas as pd
 
 
 class TransformError(ValueError):
@@ -32,6 +34,63 @@ def get_path(obj: Any, *path: str) -> Any:
             return MISSING
         node = node[key]
     return node
+
+
+def object_frame(rows: Sequence[dict], columns: Iterable[str]) -> pd.DataFrame:
+    """DataFrame com as colunas na ordem pedida. dtype `object`: guarda os objetos Python exatos
+    (date, time, datetime, int, str, dict, None) que viram os tipos SQL, sem NaN no lugar de NULL."""
+    return pd.DataFrame(list(rows), columns=list(columns), dtype=object)
+
+
+def require(obj: Any, path: tuple[str, ...], context: str) -> Any:
+    """Valor em `path`; erro (com o contexto, ex.: a partida) se a chave faltar ou for null."""
+    value = get_path(obj, *path)
+    if value is MISSING or value is None:
+        raise TransformError(f"{context}: campo obrigatório ausente ou nulo: {'.'.join(path)}")
+    return value
+
+
+def optional(obj: Any, path: tuple[str, ...]) -> Any:
+    """Valor em `path`, ou None se a chave não existir."""
+    value = get_path(obj, *path)
+    return None if value is MISSING else value
+
+
+def check_type(value: Any, expected: type, field: str, context: str) -> Any:
+    """Confere o tipo (um bool não é aceito como int). None passa: a obrigatoriedade é de `require`."""
+    if value is None:
+        return None
+    if isinstance(value, bool) != (expected is bool) or not isinstance(value, expected):
+        raise TransformError(f"{context}: {field} deve ser {expected.__name__}, recebido {value!r}")
+    return value
+
+
+def int_field(obj, path, context):
+    return check_type(require(obj, path, context), int, ".".join(path), context)
+
+
+def text_field(obj, path, context):
+    return check_type(require(obj, path, context), str, ".".join(path), context)
+
+
+def bool_field(obj, path, context):
+    return check_type(require(obj, path, context), bool, ".".join(path), context)
+
+
+def optional_int(obj, path, context):
+    return check_type(optional(obj, path), int, ".".join(path), context)
+
+
+def optional_text(obj, path, context):
+    return check_type(optional(obj, path), str, ".".join(path), context)
+
+
+def parse_field(value: Any, parser: Callable[[str], Any], field: str, context: str) -> Any:
+    """Aplica `parser` (ex.: date.fromisoformat); falha com o campo e o contexto."""
+    try:
+        return parser(value)
+    except (TypeError, ValueError) as exc:
+        raise TransformError(f"{context}: {field} inválido ({value!r}): {exc}") from exc
 
 
 def _remove_path(root: dict, path: tuple[str, ...]) -> None:

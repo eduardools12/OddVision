@@ -8,13 +8,25 @@ Campos obrigatórios ausentes viram `TransformError` com a partida e o campo, an
 
 from __future__ import annotations
 
-from collections.abc import Callable, Iterable, Sequence
+from collections.abc import Sequence
 from datetime import date, datetime, time
 from typing import Any
 
 import pandas as pd
 
-from oddvision.transform.common import MISSING, TransformError, extract_extra, get_path
+from oddvision.transform.common import (
+    MISSING,
+    TransformError,
+    bool_field,
+    extract_extra,
+    get_path,
+    int_field,
+    object_frame,
+    optional_int,
+    optional_text,
+    parse_field,
+    text_field,
+)
 
 COMPETITION_COLUMNS = (
     "competition_id", "season_id", "competition_name", "season_name", "country_name",
@@ -51,57 +63,6 @@ MATCH_MAPPED_PATHS = [
 
 # ----------------------------------------------------------------------------- leitura com validação
 
-def _frame(rows: Sequence[dict], columns: Iterable[str]) -> pd.DataFrame:
-    return pd.DataFrame(list(rows), columns=list(columns), dtype=object)
-
-
-def _require(obj: Any, path: tuple[str, ...], context: str) -> Any:
-    value = get_path(obj, *path)
-    if value is MISSING or value is None:
-        raise TransformError(f"{context}: campo obrigatório ausente ou nulo: {'.'.join(path)}")
-    return value
-
-
-def _optional(obj: Any, path: tuple[str, ...]) -> Any:
-    value = get_path(obj, *path)
-    return None if value is MISSING else value
-
-
-def _check(value: Any, expected: type, field: str, context: str) -> Any:
-    if value is None:
-        return None
-    if isinstance(value, bool) != (expected is bool) or not isinstance(value, expected):
-        raise TransformError(f"{context}: {field} deve ser {expected.__name__}, recebido {value!r}")
-    return value
-
-
-def _int(obj, path, context):
-    return _check(_require(obj, path, context), int, ".".join(path), context)
-
-
-def _text(obj, path, context):
-    return _check(_require(obj, path, context), str, ".".join(path), context)
-
-
-def _bool(obj, path, context):
-    return _check(_require(obj, path, context), bool, ".".join(path), context)
-
-
-def _optional_int(obj, path, context):
-    return _check(_optional(obj, path), int, ".".join(path), context)
-
-
-def _optional_text(obj, path, context):
-    return _check(_optional(obj, path), str, ".".join(path), context)
-
-
-def _parse(value: Any, parser: Callable[[str], Any], field: str, context: str) -> Any:
-    try:
-        return parser(value)
-    except (TypeError, ValueError) as exc:
-        raise TransformError(f"{context}: {field} inválido ({value!r}): {exc}") from exc
-
-
 def _naive_datetime(value: str) -> datetime:
     parsed = datetime.fromisoformat(value)
     if parsed.tzinfo is not None:
@@ -126,15 +87,15 @@ def competitions_frame(items: Sequence[dict], competition_id: int, season_id: in
     row = {
         "competition_id": competition_id,
         "season_id": season_id,
-        "competition_name": _text(item, ("competition_name",), context),
-        "season_name": _text(item, ("season_name",), context),
-        "country_name": _optional_text(item, ("country_name",), context),
-        "competition_gender": _text(item, ("competition_gender",), context),
-        "competition_youth": _bool(item, ("competition_youth",), context),
-        "competition_international": _bool(item, ("competition_international",), context),
+        "competition_name": text_field(item, ("competition_name",), context),
+        "season_name": text_field(item, ("season_name",), context),
+        "country_name": optional_text(item, ("country_name",), context),
+        "competition_gender": text_field(item, ("competition_gender",), context),
+        "competition_youth": bool_field(item, ("competition_youth",), context),
+        "competition_international": bool_field(item, ("competition_international",), context),
         "extra": extract_extra(item, COMPETITION_MAPPED_PATHS),
     }
-    return _frame([row], COMPETITION_COLUMNS)
+    return object_frame([row], COMPETITION_COLUMNS)
 
 
 # ----------------------------------------------------------------------------- teams
@@ -156,11 +117,11 @@ def teams_frame(matches: Sequence[dict]) -> pd.DataFrame:
             key = f"{side}_team"
             if not isinstance(get_path(match, key), dict):
                 raise TransformError(f"{context}: campo obrigatório ausente ou nulo: {key}")
-            team_id = _int(match, (key, f"{key}_id"), context)
+            team_id = int_field(match, (key, f"{key}_id"), context)
             attributes = (
-                _text(match, (key, f"{key}_name"), context),
-                _optional_text(match, (key, f"{key}_gender"), context),
-                _optional_text(match, (key, "country", "name"), context),
+                text_field(match, (key, f"{key}_name"), context),
+                optional_text(match, (key, f"{key}_gender"), context),
+                optional_text(match, (key, "country", "name"), context),
             )
             if teams.setdefault(team_id, attributes) != attributes:
                 raise TransformError(
@@ -170,7 +131,7 @@ def teams_frame(matches: Sequence[dict]) -> pd.DataFrame:
         {"team_id": team_id, "team_name": name, "team_gender": gender, "country_name": country}
         for team_id, (name, gender, country) in sorted(teams.items())
     ]
-    return _frame(rows, TEAM_COLUMNS)
+    return object_frame(rows, TEAM_COLUMNS)
 
 
 # ----------------------------------------------------------------------------- matches
@@ -183,40 +144,40 @@ def matches_frame(matches: Sequence[dict], competition_id: int, season_id: int) 
     rows, seen = [], set()
     for position, match in enumerate(matches):
         context = _match_context(match, position)
-        match_id = _int(match, ("match_id",), context)
+        match_id = int_field(match, ("match_id",), context)
         if match_id in seen:
             raise TransformError(f"match_id repetido no arquivo de partidas: {match_id}")
         seen.add(match_id)
 
-        found = (_int(match, ("competition", "competition_id"), context), _int(match, ("season", "season_id"), context))
+        found = (int_field(match, ("competition", "competition_id"), context), int_field(match, ("season", "season_id"), context))
         if found != (competition_id, season_id):
             raise TransformError(
                 f"{context}: pertence à competição {found}, mas o esperado é ({competition_id}, {season_id})"
             )
 
-        kick_off = _optional_text(match, ("kick_off",), context)
-        last_updated = _optional_text(match, ("last_updated",), context)
+        kick_off = optional_text(match, ("kick_off",), context)
+        last_updated = optional_text(match, ("last_updated",), context)
         rows.append({
             "match_id": match_id,
             "competition_id": competition_id,
             "season_id": season_id,
-            "match_date": _parse(_text(match, ("match_date",), context), date.fromisoformat, "match_date", context),
-            "kick_off": None if kick_off is None else _parse(kick_off, time.fromisoformat, "kick_off", context),
-            "home_team_id": _int(match, ("home_team", "home_team_id"), context),
-            "away_team_id": _int(match, ("away_team", "away_team_id"), context),
-            "home_score": _int(match, ("home_score",), context),
-            "away_score": _int(match, ("away_score",), context),
-            "match_week": _optional_int(match, ("match_week",), context),
-            "competition_stage": _optional_text(match, ("competition_stage", "name"), context),
-            "stadium_name": _optional_text(match, ("stadium", "name"), context),
-            "referee_name": _optional_text(match, ("referee", "name"), context),
-            "match_status": _optional_text(match, ("match_status",), context),
-            "data_version": _optional_text(match, ("metadata", "data_version"), context),
-            "shot_fidelity_version": _optional_text(match, ("metadata", "shot_fidelity_version"), context),
-            "xy_fidelity_version": _optional_text(match, ("metadata", "xy_fidelity_version"), context),
+            "match_date": parse_field(text_field(match, ("match_date",), context), date.fromisoformat, "match_date", context),
+            "kick_off": None if kick_off is None else parse_field(kick_off, time.fromisoformat, "kick_off", context),
+            "home_team_id": int_field(match, ("home_team", "home_team_id"), context),
+            "away_team_id": int_field(match, ("away_team", "away_team_id"), context),
+            "home_score": int_field(match, ("home_score",), context),
+            "away_score": int_field(match, ("away_score",), context),
+            "match_week": optional_int(match, ("match_week",), context),
+            "competition_stage": optional_text(match, ("competition_stage", "name"), context),
+            "stadium_name": optional_text(match, ("stadium", "name"), context),
+            "referee_name": optional_text(match, ("referee", "name"), context),
+            "match_status": optional_text(match, ("match_status",), context),
+            "data_version": optional_text(match, ("metadata", "data_version"), context),
+            "shot_fidelity_version": optional_text(match, ("metadata", "shot_fidelity_version"), context),
+            "xy_fidelity_version": optional_text(match, ("metadata", "xy_fidelity_version"), context),
             "last_updated": (
-                None if last_updated is None else _parse(last_updated, _naive_datetime, "last_updated", context)
+                None if last_updated is None else parse_field(last_updated, _naive_datetime, "last_updated", context)
             ),
             "extra": extract_extra(match, MATCH_MAPPED_PATHS),
         })
-    return _frame(sorted(rows, key=lambda r: r["match_id"]), MATCH_COLUMNS)
+    return object_frame(sorted(rows, key=lambda r: r["match_id"]), MATCH_COLUMNS)

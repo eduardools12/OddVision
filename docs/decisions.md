@@ -29,6 +29,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D21 | Política de imutabilidade da ingestão bruta | Aceita |
 | D22 | Acesso ao banco, DDL repetível e isolamento dos testes de integração | Aceita |
 | D23 | Carga no core: transformações puras, `upsert` e transação única | Aceita |
+| D24 | Escalações: ordem cronológica das posições e atributos dos jogadores | Aceita |
 
 ---
 
@@ -321,3 +322,23 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 - **Consequências:**
   - Cada passo de carga tem uma única função de entrada (`load_p2`, e as próximas), com entrada, saída e validação definidas.
   - A carga carrega as 64 partidas, mas só as 3 sentinelas terão eventos até o Passo 13: o app precisará tratar partidas sem eventos.
+
+## D24 — Escalações: ordem cronológica das posições e atributos dos jogadores
+
+- **Contexto:** o Passo 6 carrega `players` e `lineups`. A exploração (Passo 2) mostrou que `positions` nem sempre vem em ordem cronológica (A1) e que alguns jogadores aparecem com grafias diferentes entre arquivos (A2). A carga real mostrou conflitos também no apelido (2 jogadores) e no país (1 jogador).
+- **Decisão:**
+  - **`is_starter`, `played` e `first_position`** são derivados da primeira posição **cronológica** do jogador (ordenação estável por período e relógio), nunca da primeira listada. `positions` fica inteiro no `lineups.extra`, na **ordem original da fonte**: nada é reordenado nem perdido.
+  - **Atributos de `players` (decisão do autor, estendida):** para o nome, vale o valor mais frequente entre os arquivos. Estendi o mesmo critério ao apelido e ao país, em vez de inventar regras diferentes: **o valor mais frequente entre TODOS os arquivos de escalação do manifest (64)**, não só entre as partidas carregadas. Assim o valor gravado não muda quando o Passo 13 carregar as outras 61 partidas.
+  - **Nulo não compete** com um valor real (um apelido que falta em alguns arquivos não apaga o que consta em outros). **Empate** fica com a ordem alfabética, o que torna o resultado determinístico e independente da ordem dos arquivos.
+  - **Todo conflito é reportado como aviso** (jogador, atributo, contagens e valor gravado), nunca como erro: a regra já decidiu, e um erro bloquearia a carga por um defeito da fonte.
+  - **Uma transação por partida** (`load_match`): `players` (upsert) + `DELETE` filtrado por `match_id` + `INSERT` de `lineups` + `loaded_at` do arquivo. Se uma partida falhar, as anteriores já estão gravadas (cada uma é atômica) e a falha é reportada.
+  - **A escalação precisa ser coerente com a partida:** os dois times do arquivo devem ser o mandante e o visitante de `core.matches`, senão a carga é recusada.
+- **Limitação conhecida:** Anass Zaroury (131037) joga pelo Marrocos, mas a fonte o lista com país "Marrocos" em 3 arquivos e "Bélgica" em 4, então a regra grava `Belgium` em `players.country_name`. É um defeito da fonte que a regra não corrige. **O time de um jogador em uma partida vem sempre de `lineups.team_id`**; `players.country_name` é informativo e nenhuma métrica do MVP o usa.
+- **Alternativas:**
+  - *Valor da primeira ou da última partida:* depende de qual partida foi carregada, e muda no Passo 13.
+  - *Contar só as partidas carregadas:* o nome gravado mudaria quando mais partidas fossem carregadas.
+  - *Tratar o conflito como erro:* bloquearia a carga por causa de um dado da fonte.
+  - *Usar a ordem da fonte para a primeira posição:* erraria o `first_position` dos jogadores com `positions` fora de ordem.
+- **Consequências:**
+  - A decisão dos nomes lê os 64 arquivos de escalação (cada um com o hash conferido) a cada carga. Um arquivo adulterado, mesmo de uma partida que não seria carregada, aborta tudo antes de gravar.
+  - `core.players` só tem os jogadores das partidas carregadas (153 com as 3 sentinelas), mas o nome de cada um já é o definitivo.
