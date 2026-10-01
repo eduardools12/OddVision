@@ -33,6 +33,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D25 | Eventos: o que sai do `extra`, tempo exato e carga na transação da partida | Aceita |
 | D26 | Autorização permanente do autor para commitar e avançar de passo | Aceita |
 | D27 | Eventos especializados: nada se perde em silêncio | Aceita |
+| D28 | Checks de qualidade: arquivos SQL, erro e aviso, e prova de que falham | Aceita |
 
 ---
 
@@ -399,3 +400,17 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 - **Consequências:**
   - `card.id`, `substitution.outcome.id` e `replacement.name` não são guardados. Se um dia a fonte trouxer algo novo nesses objetos, a carga para e a decisão passa a ser do autor.
   - Medição: 3 partidas (11.444 eventos e 6.002 linhas especializadas) carregam em cerca de 6 s. Projeção linear para as 64 partidas: menos de 2 minutos. Sem necessidade de otimizar por ora.
+
+## D28 — Checks de qualidade: arquivos SQL, erro e aviso, e prova de que falham
+
+- **Contexto:** o plano diz que "um check que nunca falha é um check errado". O Passo 9 transforma as regras da spec (seção 11) em consultas executáveis e precisa provar que cada uma enxerga o defeito que deveria.
+- **Decisão:**
+  - **Um check é um arquivo `sql/checks/CNN_nome.sql`** com cabeçalho (`-- level: error|warning`, `-- title: …`) e **uma consulta que devolve as linhas problemáticas**: nenhuma linha = limpo. O nome e o nível ficam junto da regra, e o executor não conhece nenhum check em particular.
+  - **Erro derruba, aviso não.** `check` termina com código 1 se um check de nível `error` tiver linhas; um `warning` só é reportado. O `all` (ingest, init-db, load, check) para no primeiro passo que falhar.
+  - **Os checks só leem** (um teste proíbe `INSERT`, `UPDATE`, `DELETE`, `DROP`…) e **podem ler JSONB**: não são o schema `analytics`. O contrato de camadas (D05) é verificado por um teste que varre `sql/analytics/` atrás de operadores e funções JSON e da coluna `extra`, e o próprio verificador é testado com casos que devem e que não devem ser pegos.
+  - **C01 a C10 em SQL; C11 em Python**, porque compara o nome do jogador entre os arquivos brutos de escalação, que não estão no banco. O C11 só cobre o **nome** (a spec); apelido e país divergentes já saem como aviso na carga (D24).
+  - **Escopo dos checks:** o C01 só compara partidas cujo arquivo de eventos consta como carregado; o C02 e o C09 só olham partidas que têm eventos carregados; o C05 confere contagem **e** tipo (uma linha em `shots` apontando para um evento `Pass` passaria numa contagem simples); o C02 não conta a disputa de pênaltis e conta o gol contra para o time beneficiado.
+  - **A prova de que falham:** os testes de integração montam um "mundo coerente" mínimo em que todos os checks passam e injetam um defeito por vez, dentro de uma transação desfeita no fim. Quando o defeito é algo que uma `CHECK` do banco já impede (coordenadas, xG), a restrição é removida **dentro da transação**, e o check mostra ser a segunda barreira.
+- **Desvio do plano:** o plano previa os arquivos `events_corrupted.json` e `matches_corrupted.json`. Corromper o estado do banco com SQL é mais direto e mais preciso (cada teste diz exatamente o que foi quebrado), e dispensa duas fixtures grandes.
+- **Resultado nos dados reais (3 sentinelas):** **0 erros e 1 aviso** (o C11, com os 4 jogadores de nome divergente já conhecidos). A amostra parcial dos testes, por outro lado, é **rejeitada** pelo `all`: o placar (C02) e os 11 titulares (C07) não fecham com 22 de 4.407 eventos e 9 jogadores, como devem.
+- **Consequências:** os checks viram o critério de aceite da carga das 64 partidas (Passo 13). O `check` roda no banco principal configurado (`databases.main`) e, sem os arquivos brutos, pula o C11 e avisa.

@@ -61,6 +61,11 @@ def ddl_dir(root: Path) -> Path:
     return root / "sql" / "ddl"
 
 
+def checks_dir(root: Path) -> Path:
+    """Pasta dos checks de qualidade (C01_*.sql…), executados por `check`."""
+    return root / "sql" / "checks"
+
+
 def read_toml(path: Path) -> dict:
     try:
         # utf-8-sig: aceita arquivos com BOM (editores do Windows e o PowerShell 5.1 os gravam assim).

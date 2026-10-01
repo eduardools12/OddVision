@@ -1,7 +1,7 @@
 """CLI do pipeline: `python -m oddvision.pipeline <comando>`.
 
-Comandos disponíveis: `ingest`, `init-db` e `load` (P2 a P5: competições, times, partidas, escalações, eventos e
-eventos especializados). Os comandos check e all entram no Passo 9.
+Comandos: `ingest` (P1), `init-db`, `load` (P2 a P5: competições, times, partidas, escalações, eventos e eventos
+especializados), `check` (P6: checks de qualidade) e `all` (os quatro, em sequência, parando no primeiro que falhar).
 """
 
 from __future__ import annotations
@@ -13,9 +13,11 @@ from pathlib import Path
 
 from sqlalchemy.exc import SQLAlchemyError
 
+from oddvision.checks import format_report, has_errors, run_checks
 from oddvision.config import (
     PROJECT_ROOT,
     ConfigError,
+    checks_dir,
     database_config_path,
     ddl_dir,
     load_selection,
@@ -24,7 +26,7 @@ from oddvision.config import (
     selection_path,
 )
 from oddvision.db import apply_ddl, core_table_names, ddl_files, load_database_config, make_engine
-from oddvision.ingest import IngestError, http_download, run_ingest
+from oddvision.ingest import IngestError, http_download, read_manifest, run_ingest
 from oddvision.load import LoadError, load_matches, load_p2
 from oddvision.transform.common import TransformError
 
@@ -130,6 +132,60 @@ def _cmd_load(root: Path) -> int:
     return 0
 
 
+def _cmd_check(root: Path) -> int:
+    """Executa os checks de qualidade e imprime o relatório. Código 1 se algum check de nível `error` falhar."""
+    try:
+        config = load_database_config(database_config_path(root))
+    except ConfigError as exc:
+        print(f"erro: {exc}", file=sys.stderr)
+        return 1
+
+    manifest = manifest_path(root)
+    # O C11 lê os arquivos brutos de escalação: só roda se a ingestão já aconteceu.
+    with_raw = manifest.exists() and any(p.startswith("lineups/") for p in read_manifest(manifest))
+    engine = make_engine(config, config.main_db)
+    try:
+        with engine.connect() as conn:
+            results = run_checks(
+                conn, checks_dir(root),
+                raw_dir=raw_dir(root) if with_raw else None, manifest_path=manifest if with_raw else None,
+            )
+    except (ConfigError, IngestError, TransformError, LoadError) as exc:
+        print(f"erro: {exc}", file=sys.stderr)
+        return 1
+    except SQLAlchemyError as exc:
+        print(
+            f"erro: não foi possível executar os checks no banco {config.main_db} "
+            f"({config.host}:{config.port}, usuário {config.user}): {_database_reason(exc)}",
+            file=sys.stderr,
+        )
+        return 1
+    finally:
+        engine.dispose()
+
+    print(f"banco: {config.main_db} em {config.host}:{config.port} (usuário {config.user})")
+    if not with_raw:
+        print("C11   PULADO  sem arquivos brutos de escalação (rode `ingest`)")
+    print(format_report(results))
+    return 1 if has_errors(results) else 0
+
+
+def _cmd_all(root: Path, download: Callable[[str], bytes]) -> int:
+    """ingest -> init-db -> load -> check. Para no primeiro passo que falhar e devolve o código dele."""
+    for name, step in (
+        ("ingest", lambda: _cmd_ingest(root, download)),
+        ("init-db", lambda: _cmd_init_db(root)),
+        ("load", lambda: _cmd_load(root)),
+        ("check", lambda: _cmd_check(root)),
+    ):
+        print(f"\n== {name} ==")
+        code = step()
+        if code != 0:
+            print(f"\n`all` parou em `{name}` (código {code}).", file=sys.stderr)
+            return code
+    return 0
+
+
 def main(
     argv: Sequence[str] | None = None,
     *,
@@ -141,6 +197,8 @@ def main(
     commands.add_parser("ingest", help="baixa os JSONs brutos do StatsBomb para data/raw/ e gera o manifest")
     commands.add_parser("init-db", help="cria os schemas core e analytics no banco principal (repetível; nunca apaga dados)")
     commands.add_parser("load", help="carrega competições, times, partidas, escalações, eventos e eventos especializados (repetível)")
+    commands.add_parser("check", help="executa os checks de qualidade; termina com código 1 se algum check de erro falhar")
+    commands.add_parser("all", help="ingest + init-db + load + check, parando no primeiro que falhar")
 
     args = parser.parse_args(argv)
     if args.command == "ingest":
@@ -149,6 +207,10 @@ def main(
         return _cmd_init_db(root)
     if args.command == "load":
         return _cmd_load(root)
+    if args.command == "check":
+        return _cmd_check(root)
+    if args.command == "all":
+        return _cmd_all(root, download)
     raise AssertionError(f"comando não tratado: {args.command}")  # pragma: no cover
 
 
