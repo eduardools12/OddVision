@@ -9,7 +9,7 @@ JSON bruto (imutável) → core (PostgreSQL, tipado) → analytics (views SQL) �
 ```
 
 > **Status:** MVP concluído (Passos 1 a 13): as 64 partidas carregadas, 8 métricas em SQL e a página da partida.
-> Uma validação ainda depende do autor: rodar o pipeline em um banco vazio (`oddvision_verify`) e comparar com o principal (veja [Reprodutibilidade](#reprodutibilidade)).
+> O pipeline também foi verificado do zero em um banco vazio (`oddvision_verify`), com resultado igual ao do principal (veja [Reprodutibilidade](#reprodutibilidade)).
 
 ## O que a aplicação mostra
 
@@ -84,7 +84,7 @@ A carga completa leva cerca de 90 a 120 segundos (234.637 eventos). Os testes le
 
 ## Reprodutibilidade
 
-A carga é idempotente: duas execuções seguidas deixam o banco idêntico (contagens e hashes conferidos). Para provar que o pipeline funciona do zero, o autor cria um banco vazio e roda:
+A carga é idempotente: duas execuções seguidas deixam o banco idêntico (contagens e hashes conferidos). Para provar que o pipeline funciona do zero, crie um banco vazio e rode:
 
 ```sql
 CREATE DATABASE oddvision_verify OWNER oddvision_app;
@@ -94,7 +94,7 @@ CREATE DATABASE oddvision_verify OWNER oddvision_app;
 .\.venv\Scripts\python.exe -m oddvision.pipeline --database oddvision_verify all
 ```
 
-A opção `--database` só aceita o banco principal ou um nome terminado em `_verify` (D40).
+A opção `--database` só aceita o banco principal ou um nome terminado em `_verify` (D40). Na verificação feita, o `core` ficou idêntico ao do banco principal e as métricas só diferiram em ruído de ponto flutuante (no máximo 1,3 × 10⁻¹⁵ nas somas de xG; veja D39).
 
 ## Limitações e viés da amostra
 
