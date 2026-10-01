@@ -47,3 +47,20 @@ def test_an_analytics_file_only_creates_views_in_the_analytics_schema(path):
 @pytest.mark.parametrize("path", FILES, ids=lambda p: p.name)
 def test_an_analytics_file_name_starts_with_its_order_number(path):
     assert re.fullmatch(r"\d{2}_[a-z0-9_]+\.sql", path.name), path.name
+
+
+@pytest.mark.parametrize("path", FILES, ids=lambda p: p.name)
+def test_an_analytics_file_has_no_percent_sign(path):
+    """O driver (psycopg) lê '%' como início de parâmetro, até dentro de comentário: escreva 'percentual'."""
+    assert "%" not in path.read_text(encoding="utf-8"), path.name
+
+
+def test_every_view_is_defined_before_the_files_that_read_it():
+    defined_in = {}
+    for path in FILES:
+        for view in re.findall(r"CREATE\s+VIEW\s+analytics\.(\w+)", path.read_text(encoding="utf-8"), re.IGNORECASE):
+            defined_in[view] = path.name
+    for path in FILES:
+        code = re.sub(r"--[^\n]*", " ", path.read_text(encoding="utf-8"))
+        for view in set(re.findall(r"(?:FROM|JOIN)\s+analytics\.(\w+)", code, re.IGNORECASE)):
+            assert defined_in[view] < path.name, f"{path.name} lê analytics.{view}, definida em {defined_in[view]}"

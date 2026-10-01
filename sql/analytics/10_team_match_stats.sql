@@ -4,6 +4,7 @@
 --   M1  gols, gols_contra_a_favor, penaltis_disputa
 --   M2  finalizacoes, finalizacoes_no_alvo
 --   M3  xg, npxg, finalizacoes_sem_penalti, npxg_por_finalizacao_sem_penalti
+--   M4  passes_tentados, passes_completos, pct_acerto_passes
 --
 -- Esta view nunca lê colunas JSONB (D05) e nunca grava nada.
 
@@ -45,6 +46,14 @@ WITH played_matches AS (
     FROM analytics.shot_events
     WHERE NOT is_shootout
     GROUP BY match_id, team_id
+), pass_stats AS (
+    -- M4: só os passes tentados (analytics.pass_events define o que é tentado); completos são um subconjunto deles.
+    SELECT match_id, team_id,
+           count(*) AS attempted,
+           count(*) FILTER (WHERE is_complete) AS completed
+    FROM analytics.pass_events
+    WHERE is_tentado
+    GROUP BY match_id, team_id
 )
 SELECT mt.match_id,
        mt.team_id,
@@ -62,10 +71,15 @@ SELECT mt.match_id,
        COALESCE(ss.xg, 0)::double precision AS xg,
        COALESCE(ss.npxg, 0)::double precision AS npxg,
        COALESCE(ss.shots_no_pen, 0)::integer AS finalizacoes_sem_penalti,
-       CASE WHEN COALESCE(ss.shots_no_pen, 0) = 0 THEN NULL ELSE ss.npxg / ss.shots_no_pen END AS npxg_por_finalizacao_sem_penalti
+       CASE WHEN COALESCE(ss.shots_no_pen, 0) = 0 THEN NULL ELSE ss.npxg / ss.shots_no_pen END AS npxg_por_finalizacao_sem_penalti,
+       -- M4: passes tentados, completos e percentual de acerto (0 a 100, sem arredondar; NULL sem passes tentados)
+       COALESCE(pst.attempted, 0)::integer AS passes_tentados,
+       COALESCE(pst.completed, 0)::integer AS passes_completos,
+       CASE WHEN COALESCE(pst.attempted, 0) = 0 THEN NULL ELSE 100.0 * pst.completed / pst.attempted END::double precision AS pct_acerto_passes
 FROM match_teams mt
 JOIN core.teams t ON t.team_id = mt.team_id
 LEFT JOIN shot_goals g ON g.match_id = mt.match_id AND g.team_id = mt.team_id
 LEFT JOIN own_goals og ON og.match_id = mt.match_id AND og.team_id = mt.team_id
 LEFT JOIN shootouts so ON so.match_id = mt.match_id
-LEFT JOIN shot_stats ss ON ss.match_id = mt.match_id AND ss.team_id = mt.team_id;
+LEFT JOIN shot_stats ss ON ss.match_id = mt.match_id AND ss.team_id = mt.team_id
+LEFT JOIN pass_stats pst ON pst.match_id = mt.match_id AND pst.team_id = mt.team_id;

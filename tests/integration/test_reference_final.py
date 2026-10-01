@@ -100,6 +100,30 @@ def test_m2_m3_every_loaded_match_respects_the_invariants(final):
     assert broken == []
 
 
+@pytest.mark.parametrize("name", list(TEAMS))
+def test_m4_passes_and_accuracy_of_the_final(final, name):
+    r, expected = team_row(final, name), TEAMS[name]
+    assert (r.passes_tentados, r.passes_completos) == (expected["passes_tentados"], expected["passes_completos"])
+    assert r.pct_acerto_passes == pytest.approx(expected["pct_acerto_passes"], abs=0.1)
+    assert r.pct_acerto_passes == pytest.approx(100 * r.passes_completos / r.passes_tentados, abs=1e-9)
+
+
+def test_m4_the_players_of_the_final_add_up_to_each_team(final):
+    for name in TEAMS:
+        team = team_row(final, name)
+        total = final.execute(text(
+            "SELECT sum(passes_tentados) AS tentados, sum(passes_completos) AS completos FROM analytics.player_match_stats "
+            "WHERE match_id = :m AND team_id = :t"), {"m": FINAL, "t": team.team_id}).one()
+        assert (total.tentados, total.completos) == (team.passes_tentados, team.passes_completos)
+
+
+def test_m4_every_loaded_match_respects_the_invariants(final):
+    broken = final.execute(text(
+        "SELECT match_id, team_id FROM analytics.team_match_stats "
+        "WHERE passes_completos > passes_tentados OR pct_acerto_passes NOT BETWEEN 0 AND 100")).all()
+    assert broken == []
+
+
 def test_m1_every_loaded_match_reproduces_its_official_score(final):
     wrong = final.execute(text("SELECT match_id FROM analytics.match_summary WHERE has_events AND NOT score_matches_events")).all()
     assert wrong == []

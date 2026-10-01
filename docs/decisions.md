@@ -36,6 +36,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D28 | Checks de qualidade: arquivos SQL, erro e aviso, e prova de que falham | Aceita |
 | D29 | Camada analytics: views recriadas dos arquivos e três camadas de prova | Aceita |
 | D30 | Finalizações como view de eventos (`shot_events`) e M2/M3 sobre ela | Aceita |
+| D31 | Passes como view de eventos (`pass_events`) e M4 sobre ela | Aceita |
 
 ---
 
@@ -441,3 +442,13 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
   - O gol contra não é finalização: não entra em M2, M3 nem nas contagens por jogador (continua só em `gols`, M1).
 - **Alternativas:** *repetir a regra "no alvo" em cada view* (risco de divergência); *agregar direto de `core.shots`* (o mapa teria de reimplementar a regra).
 - **Validação:** 20 testes sintéticos (fronteiras de cada resultado, pênalti em jogo, disputa, taxa `NULL`, Σ jogadores = time), a referência da final (Argentina 20/10, xG 2,7583, npxG 1,9748, taxa 0,1039; França 10/5, 2,2726, 0,7056, 0,0882) e 8 mutações na SQL, todas detectadas pelos testes.
+
+## D31 — Passes como view de eventos (`pass_events`) e M4 sobre ela
+
+- **Contexto:** M4 (e, adiante, M5 e M7) agregam passes, e o mapa de passes (Passo 12) precisa dos mesmos passes um a um. Mesma lógica de D30.
+- **Decisão:**
+  - `analytics.pass_events` (arquivo `06_pass_events.sql`) tem **uma linha por passe**, com `is_jogo_corrido` (pass_type nulo, `Recovery` ou `Interception`) e `is_tentado` (período 1 a 4, não é `Throw-in`, resultado fora de `Unknown` e `Injury Clearance`). Os passos de M5 e M7 acrescentam colunas no fim.
+  - `passes_completos` conta só passes **tentados** que são completos: um lateral completo (`Throw-in`) não é tentado, então não entra. Bola parada com o pé (escanteio, falta, tiro de meta, saída) é tentada, e impedimento (`Pass Offside`) é uma tentativa que falhou.
+  - **`pct_acerto_passes` não é arredondado na view** (0 a 100, `double precision`, `NULL` sem passes tentados). O arredondamento a 1 casa de `docs/metrics.md` é de apresentação: arredondar na origem perderia precisão para quem agregar depois.
+  - **Guarda nova nos arquivos de `analytics`:** nenhum pode conter o caractere `%`, nem em comentário, porque o driver (psycopg) o lê como início de parâmetro e a aplicação falha. Também há um teste de que cada view é definida em arquivo de número menor que os arquivos que a leem.
+- **Validação:** 28 testes sintéticos (cada `pass_type` e cada `outcome`, período 5, Σ jogadores = time, percentual nulo), a referência da final (Argentina 661/538, 81,4; França 544/414, 76,1) e 11 mutações, todas detectadas.
