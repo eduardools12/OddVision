@@ -35,6 +35,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D27 | Eventos especializados: nada se perde em silêncio | Aceita |
 | D28 | Checks de qualidade: arquivos SQL, erro e aviso, e prova de que falham | Aceita |
 | D29 | Camada analytics: views recriadas dos arquivos e três camadas de prova | Aceita |
+| D30 | Finalizações como view de eventos (`shot_events`) e M2/M3 sobre ela | Aceita |
 
 ---
 
@@ -429,3 +430,14 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
   - **Zero e `NULL` têm significados diferentes**, e as views os respeitam: contagens sem ocorrência são 0; taxas com denominador 0 são `NULL`; `penaltis_disputa` é `NULL` quando não houve disputa e 0 quando houve e nenhum pênalti foi convertido.
 - **Alternativas:** *`CREATE OR REPLACE VIEW` com migrações* (mais passos manuais para views que não têm dados); *views materializadas* (dados para manter em dia, sem necessidade neste volume); *funções SQL para a distância e a área* (o schema passa a ter outros objetos além de views; preferi expressões inline com uma CTE `params`).
 - **Consequências:** mudar uma métrica é mudar um arquivo SQL e rodar `init-db`; nenhum dado é reprocessado (D15).
+
+## D30 — Finalizações como view de eventos (`shot_events`) e M2/M3 sobre ela
+
+- **Contexto:** M2 e M3 agregam finalizações por time e por jogador, e o mapa de finalizações (Passo 12) precisa das mesmas finalizações uma a uma. Duas fontes de regra (uma para a agregação, outra para o mapa) poderiam divergir.
+- **Decisão:**
+  - `analytics.shot_events` (arquivo `05_shot_events.sql`, número menor que o das views de estatísticas, que dependem dela) guarda **uma linha por finalização**, inclusive as da disputa, com as marcações `is_goal`, `is_no_alvo`, `is_penalty` e `is_shootout`. **A regra "no alvo" (Goal, Saved, Saved to Post) e a de pênalti existem só ali**; `team_match_stats` e `player_match_stats` apenas agregam as marcações.
+  - As colunas novas ficam no fim das duas views de estatísticas: `finalizacoes`, `finalizacoes_no_alvo`, `xg`, `npxg`, `finalizacoes_sem_penalti`, `npxg_por_finalizacao_sem_penalti`. Todas excluem o período 5 (D08).
+  - **Numerador e denominador da taxa excluem os mesmos eventos:** `npxg` e `finalizacoes_sem_penalti` ignoram todo pênalti (`shot_type = 'Penalty'`), em jogo ou não. Sem finalização sem pênalti a taxa é `NULL`.
+  - O gol contra não é finalização: não entra em M2, M3 nem nas contagens por jogador (continua só em `gols`, M1).
+- **Alternativas:** *repetir a regra "no alvo" em cada view* (risco de divergência); *agregar direto de `core.shots`* (o mapa teria de reimplementar a regra).
+- **Validação:** 20 testes sintéticos (fronteiras de cada resultado, pênalti em jogo, disputa, taxa `NULL`, Σ jogadores = time), a referência da final (Argentina 20/10, xG 2,7583, npxG 1,9748, taxa 0,1039; França 10/5, 2,2726, 0,7056, 0,0882) e 8 mutações na SQL, todas detectadas pelos testes.

@@ -67,6 +67,39 @@ def test_m1_the_goal_scorers_of_the_final(final):
     assert scorers == REFERENCE["gols_por_jogador"]
 
 
+@pytest.mark.parametrize("name", list(TEAMS))
+def test_m2_shots_and_shots_on_target_of_the_final(final, name):
+    r, expected = team_row(final, name), TEAMS[name]
+    assert (r.finalizacoes, r.finalizacoes_no_alvo) == (expected["finalizacoes"], expected["finalizacoes_no_alvo"])
+
+
+@pytest.mark.parametrize("name", list(TEAMS))
+def test_m3_xg_npxg_and_the_rate_of_the_final(final, name):
+    r, expected = team_row(final, name), TEAMS[name]
+    assert r.finalizacoes_sem_penalti == expected["finalizacoes_sem_penalti"]
+    assert r.xg == pytest.approx(expected["xg"], abs=1e-4)
+    assert r.npxg == pytest.approx(expected["npxg"], abs=1e-4)
+    assert r.npxg_por_finalizacao_sem_penalti == pytest.approx(expected["npxg_por_finalizacao_sem_penalti"], abs=1e-4)
+
+
+def test_m2_m3_the_players_of_the_final_add_up_to_each_team(final):
+    for name in TEAMS:
+        team = team_row(final, name)
+        total = final.execute(text(
+            "SELECT sum(finalizacoes) f, sum(finalizacoes_no_alvo) a, sum(xg) xg, sum(npxg) npxg "
+            "FROM analytics.player_match_stats WHERE match_id = :m AND team_id = :t"), {"m": FINAL, "t": team.team_id}).one()
+        assert (total.f, total.a) == (team.finalizacoes, team.finalizacoes_no_alvo)
+        assert total.xg == pytest.approx(team.xg, abs=1e-9) and total.npxg == pytest.approx(team.npxg, abs=1e-9)
+
+
+def test_m2_m3_every_loaded_match_respects_the_invariants(final):
+    broken = final.execute(text(
+        "SELECT match_id, team_id FROM analytics.team_match_stats "
+        "WHERE finalizacoes_no_alvo > finalizacoes OR npxg > xg + 1e-9 OR finalizacoes_sem_penalti > finalizacoes "
+        "OR gols > finalizacoes + gols_contra_a_favor")).all()
+    assert broken == []
+
+
 def test_m1_every_loaded_match_reproduces_its_official_score(final):
     wrong = final.execute(text("SELECT match_id FROM analytics.match_summary WHERE has_events AND NOT score_matches_events")).all()
     assert wrong == []
