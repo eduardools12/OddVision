@@ -23,7 +23,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D15 | Convenções analíticas somente em `analytics` | Aceita |
 | D16 | Regra de contrato por etapa (entrada, saída, validação) | Aceita |
 | D17 | Nenhuma ação automática sobre o PostgreSQL existente | Aceita |
-| D18 | Commits manuais pelo autor | Aceita |
+| D18 | Commits manuais pelo autor | Substituída por D26 |
 | D19 | `pyproject.toml` + layout `src/` + instalação editável | Aceita |
 | D20 | Versões fixadas das dependências diretas | Aceita |
 | D21 | Política de imutabilidade da ingestão bruta | Aceita |
@@ -31,6 +31,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D23 | Carga no core: transformações puras, `upsert` e transação única | Aceita |
 | D24 | Escalações: ordem cronológica das posições e atributos dos jogadores | Aceita |
 | D25 | Eventos: o que sai do `extra`, tempo exato e carga na transação da partida | Aceita |
+| D26 | Autorização permanente do autor para commitar e avançar de passo | Aceita |
 
 ---
 
@@ -363,3 +364,19 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 - **Consequências:**
   - Entre os Passos 7 e 8, os objetos `shot`, `pass`, `carry` e `substitution` ainda não estão em nenhuma tabela do banco (continuam nos JSONs brutos). É um estado intermediário esperado.
   - O `card.id` e o `substitution.replacement.name` não terão onde ficar no Passo 8, porque `cards` e `substitutions` não têm `extra`. São ids e nomes de domínio deriváveis dos outros campos.
+
+## D26 — Autorização permanente do autor para commitar e avançar de passo
+
+- **Contexto:** até o Passo 7, cada commit e cada avanço de passo dependiam de uma autorização do autor (D18). Ao fim do Passo 7 o autor concedeu uma autorização permanente.
+- **Decisão (do autor):**
+  - O assistente **faz os commits** de cada passo, sem consultar antes, e **sempre mostra a evidência** de que ocorreram (`git status` e `git log` logo depois).
+  - O assistente **segue para os passos seguintes** do plano sem pedir autorização a cada um.
+- **Limites que continuam valendo:**
+  - Nada de `push`, `amend`, `squash`, `reset --hard` ou outra forma de reescrever o histórico.
+  - Cada commit contém só os arquivos do seu passo, com mensagem descritiva, e só é feito depois de a suíte de testes passar.
+  - Nenhuma ação destrutiva no ambiente do autor nem no PostgreSQL (D17). O único `DELETE` do projeto continua sendo o da carga por partida, filtrado por `match_id` (D06).
+  - Senhas nunca aparecem em saída, em log nem em commit (D22).
+  - Ações que só o autor pode fazer (por exemplo, criar um banco como superusuário) continuam com o autor.
+  - **Decisões que mudam o que a spec aprovou** continuam sendo registradas em `decisions.md` e destacadas no resumo ao autor, para que ele possa revê-las. Avançar sem consultar não é decidir em silêncio.
+- **Alternativas:** manter a consulta a cada passo (mais lento, com o mesmo resultado quando tudo passa).
+- **Consequências:** o histórico do Git passa a ser escrito pelo assistente, mas cada commit é revisável a qualquer momento (`git show`, `git revert`), e o autor pode revogar esta decisão quando quiser.
