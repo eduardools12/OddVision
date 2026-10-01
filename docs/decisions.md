@@ -28,6 +28,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D20 | Versões fixadas das dependências diretas | Aceita |
 | D21 | Política de imutabilidade da ingestão bruta | Aceita |
 | D22 | Acesso ao banco, DDL repetível e isolamento dos testes de integração | Aceita |
+| D23 | Carga no core: transformações puras, `upsert` e transação única | Aceita |
 
 ---
 
@@ -300,3 +301,23 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
   - `init-db` não faz `ALTER`: mudar uma tabela que já existe em um banco com dados exigirá uma migração explícita (a decidir quando acontecer).
   - Não há índices além de chaves primárias e `UNIQUE`. Só serão criados se a medição nos Passos 10 e 13 justificar.
   - Um servidor PostgreSQL descartável (pasta de dados e porta próprias, fora do servidor do autor) foi usado para validar o DDL e os testes antes de o autor criar os bancos reais.
+
+## D23 — Carga no core: transformações puras, `upsert` e transação única
+
+- **Contexto:** o Passo 5 é a primeira carga real (competições, times, partidas e `ingestion_log`). As escolhas feitas aqui valem para as cargas de escalações e eventos dos Passos 6 a 8.
+- **Decisão:**
+  - **Transformação e gravação são separadas.** `transform/*.py` são funções puras (JSON → DataFrame, sem rede, disco nem banco); `load.py` grava. Os testes das transformações não precisam de banco.
+  - **Ler e transformar antes de abrir a transação.** Um arquivo bruto adulterado (`read_verified_json` compara o sha256 com o manifest) ou um campo obrigatório ausente (`TransformError`, com a partida e o campo) aborta sem tocar no banco.
+  - **Uma transação por carga:** tudo entra junto ou nada entra. Um teste força uma violação de `CHECK` no meio e confere que `competitions` e `teams` também foram desfeitos.
+  - **`upsert` genérico** (`INSERT … ON CONFLICT DO UPDATE`) para as dimensões e o `ingestion_log`. Nomes de tabela e coluna são validados como identificadores, porque não podem ir como parâmetro SQL. A coluna `extra` é convertida com `CAST(… AS JSONB)`.
+  - **`ingestion_log.loaded_at` guarda o momento da última carga de cada arquivo** e fica nulo para o que ainda não foi carregado. Registrar o manifest de novo não apaga um valor já gravado (`COALESCE`).
+  - **`matches.extra` = origem menos o que virou coluna de `matches` ou das tabelas geradas do mesmo objeto** (`competitions`, `teams`). Os pais que ficam vazios são podados; chaves ausentes são ignoradas.
+  - **DataFrames com dtype `object`:** guardam os objetos Python exatos (`date`, `time`, `datetime`, `dict`, `None`) que viram os tipos SQL, sem a conversão de nulos para `NaN` do pandas. Para os eventos (234 mil linhas) o dtype será reavaliado se a medição mostrar necessidade.
+  - **O mesmo time com atributos diferentes entre partidas é um erro**, e não uma escolha silenciosa. (Na Copa 2022 não ocorre: os 32 times são consistentes.)
+- **Alternativas:**
+  - *`DataFrame.to_sql`:* não faz *upsert* e não converte `extra` para JSONB.
+  - *Uma transação por tabela:* poderia deixar partidas sem a competição carregada, ou o contrário.
+  - *Dtypes do pandas (`Int64`, `string`):* `pd.NA` e `NaN` precisariam de conversão manual antes de cada gravação.
+- **Consequências:**
+  - Cada passo de carga tem uma única função de entrada (`load_p2`, e as próximas), com entrada, saída e validação definidas.
+  - A carga carrega as 64 partidas, mas só as 3 sentinelas terão eventos até o Passo 13: o app precisará tratar partidas sem eventos.

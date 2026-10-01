@@ -85,6 +85,18 @@ def test_init_db_reports_a_missing_ddl_folder(tmp_path, capsys):
     assert "DDL" in capsys.readouterr().err
 
 
+def test_load_reports_a_missing_database_config(project_root, capsys):
+    assert main(["load"], root=project_root) == 1
+    assert "database.toml" in capsys.readouterr().err
+
+
+def test_load_reports_a_missing_manifest_before_touching_the_database(project_root, capsys):
+    write_database_toml(project_root, port=1)  # se tentasse conectar, falharia por outro motivo
+    assert main(["load"], root=project_root) == 1
+    err = capsys.readouterr().err
+    assert "manifest" in err and "ingest" in err
+
+
 def test_init_db_reports_an_unreachable_server_without_leaking_the_password(tmp_path, capsys):
     write_database_toml(tmp_path, port=1)  # nada escuta na porta 1
     (tmp_path / "sql" / "ddl").mkdir(parents=True)

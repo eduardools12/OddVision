@@ -1,6 +1,7 @@
 """CLI do pipeline: `python -m oddvision.pipeline <comando>`.
 
-Comandos disponíveis: `ingest` e `init-db`. Os demais (load, check, all) entram nos Passos 5 a 9.
+Comandos disponíveis: `ingest`, `init-db` e `load` (por enquanto só P2: competições, times e partidas).
+Os demais (check, all) e as cargas de escalações e eventos entram nos Passos 6 a 9.
 """
 
 from __future__ import annotations
@@ -24,6 +25,8 @@ from oddvision.config import (
 )
 from oddvision.db import apply_ddl, core_table_names, ddl_files, load_database_config, make_engine
 from oddvision.ingest import IngestError, http_download, run_ingest
+from oddvision.load import load_p2
+from oddvision.transform.common import TransformError
 
 
 def _cmd_ingest(root: Path, download: Callable[[str], bytes]) -> int:
@@ -59,10 +62,9 @@ def _cmd_init_db(root: Path) -> int:
         applied = apply_ddl(engine, ddl_dir(root))
         tables = core_table_names(engine)
     except SQLAlchemyError as exc:
-        reason = " ".join(str(getattr(exc, "orig", exc)).split())[:300]  # a senha nunca faz parte dessa mensagem
         print(
             f"erro: não foi possível aplicar o DDL no banco {config.main_db} "
-            f"({config.host}:{config.port}, usuário {config.user}): {reason}",
+            f"({config.host}:{config.port}, usuário {config.user}): {_database_reason(exc)}",
             file=sys.stderr,
         )
         return 1
@@ -72,6 +74,41 @@ def _cmd_init_db(root: Path) -> int:
     print(f"banco: {config.main_db} em {config.host}:{config.port} (usuário {config.user})")
     print(f"DDL aplicado: {', '.join(applied)}")
     print(f"core: {len(tables)} tabelas")
+    return 0
+
+
+def _database_reason(exc: SQLAlchemyError) -> str:
+    return " ".join(str(getattr(exc, "orig", exc)).split())[:300]  # a senha nunca faz parte dessa mensagem
+
+
+def _cmd_load(root: Path) -> int:
+    """Carrega no core o que foi baixado: competições, times e partidas (P2). Repetível."""
+    try:
+        selection = load_selection(selection_path(root))
+        config = load_database_config(database_config_path(root))
+    except ConfigError as exc:
+        print(f"erro: {exc}", file=sys.stderr)
+        return 1
+
+    engine = make_engine(config, config.main_db)
+    try:
+        result = load_p2(engine, selection, raw_dir(root), manifest_path(root))
+    except (IngestError, TransformError) as exc:
+        print(f"erro: {exc}", file=sys.stderr)
+        return 1
+    except SQLAlchemyError as exc:
+        print(
+            f"erro: não foi possível carregar no banco {config.main_db} "
+            f"({config.host}:{config.port}, usuário {config.user}): {_database_reason(exc)}",
+            file=sys.stderr,
+        )
+        return 1
+    finally:
+        engine.dispose()
+
+    print(f"banco: {config.main_db} em {config.host}:{config.port} (usuário {config.user})")
+    print(f"competitions: {result.competitions}, teams: {result.teams}, matches: {result.matches}")
+    print(f"ingestion_log: {result.log_files} arquivos registrados")
     return 0
 
 
@@ -85,12 +122,15 @@ def main(
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("ingest", help="baixa os JSONs brutos do StatsBomb para data/raw/ e gera o manifest")
     commands.add_parser("init-db", help="cria os schemas core e analytics no banco principal (repetível; nunca apaga dados)")
+    commands.add_parser("load", help="carrega competições, times e partidas no core (repetível; tudo ou nada)")
 
     args = parser.parse_args(argv)
     if args.command == "ingest":
         return _cmd_ingest(root, download)
     if args.command == "init-db":
         return _cmd_init_db(root)
+    if args.command == "load":
+        return _cmd_load(root)
     raise AssertionError(f"comando não tratado: {args.command}")  # pragma: no cover
 
 

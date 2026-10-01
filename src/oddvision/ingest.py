@@ -157,6 +157,28 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def read_verified_json(raw_dir: Path, entries: dict[str, ManifestEntry], rel_path: str):
+    """Lê um arquivo bruto como JSON, depois de provar que ele é o que a ingestão baixou.
+
+    O sha256 do arquivo em disco é comparado com o do manifest: o que a carga lê é exatamente o
+    que foi validado na ingestão. Qualquer divergência é um `IntegrityError`, e nada é carregado.
+    """
+    entry = entries.get(rel_path)
+    if entry is None:
+        raise IntegrityError(f"{rel_path} não consta no manifest; rode `ingest` antes de carregar.")
+    path = raw_dir / rel_path
+    if not path.is_file():
+        raise IntegrityError(f"{rel_path} consta no manifest, mas não existe em disco; rode `ingest`.")
+    data = path.read_bytes()
+    actual = hashlib.sha256(data).hexdigest()
+    if actual != entry.sha256:
+        raise IntegrityError(
+            f"{rel_path} foi modificado depois da ingestão (sha256 {actual[:12]}… ≠ manifest {entry.sha256[:12]}…). "
+            "Os dados brutos são imutáveis: restaure o original (nada foi carregado)."
+        )
+    return json.loads(data.decode("utf-8"))
+
+
 def _write_atomic(path: Path, data: bytes) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_name(path.name + ".part")

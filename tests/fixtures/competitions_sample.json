@@ -1,0 +1,30 @@
+[
+  {
+    "competition_id": 43,
+    "season_id": 106,
+    "country_name": "International",
+    "competition_name": "FIFA World Cup",
+    "competition_gender": "male",
+    "competition_youth": false,
+    "competition_international": true,
+    "season_name": "2022",
+    "match_updated": "2026-05-04T01:48:57.914346",
+    "match_updated_360": "2026-05-04T01:53:40.309717",
+    "match_available_360": "2026-05-04T01:53:40.309717",
+    "match_available": "2026-05-04T01:48:57.914346"
+  },
+  {
+    "competition_id": 11,
+    "season_id": 90,
+    "country_name": "Spain",
+    "competition_name": "La Liga",
+    "competition_gender": "male",
+    "competition_youth": false,
+    "competition_international": false,
+    "season_name": "2020/2021",
+    "match_updated": "2025-11-02T03:55:19.577958",
+    "match_updated_360": "2025-11-02T03:55:53.923193",
+    "match_available_360": "2025-11-02T03:55:53.923193",
+    "match_available": "2025-11-02T03:55:19.577958"
+  }
+]

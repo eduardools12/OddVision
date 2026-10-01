@@ -59,6 +59,15 @@ def schemas(engine):
 
 
 @pytest.fixture
+def fresh_schemas(schemas):
+    """Para testes que GRAVAM de verdade (commit): começa e termina com os schemas vazios,
+    para não deixar dados que atrapalhem os outros testes."""
+    reset_schemas(schemas)
+    yield schemas
+    reset_schemas(schemas)
+
+
+@pytest.fixture
 def conn(schemas):
     """Conexão dentro de uma transação que é DESFEITA no fim: cada teste começa do zero."""
     with schemas.connect() as connection:

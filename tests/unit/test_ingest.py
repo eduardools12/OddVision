@@ -21,6 +21,7 @@ from oddvision.ingest import (
     InvalidContentError,
     http_download,
     read_manifest,
+    read_verified_json,
     run_ingest,
 )
 
@@ -219,6 +220,47 @@ def test_on_file_reports_downloads_and_existing_files(fake_source, dirs):
     events.clear()
     ingest(fake_source, dirs, on_file=lambda action, path: events.append((action, path)))
     assert [a for a, _ in events] == ["existente"] * TOTAL
+
+
+# --------------------------------------------------------------------------- read_verified_json
+
+def test_read_verified_json_returns_the_parsed_content(fake_source, dirs):
+    ingest(fake_source, dirs)
+    raw, manifest = dirs
+    events = read_verified_json(raw, read_manifest(manifest), "events/101.json")
+    assert [e["id"] for e in events] == ["a", "b", "c"]
+
+
+def test_read_verified_json_keeps_accents(fake_source, dirs):
+    ingest(fake_source, dirs)
+    raw, manifest = dirs
+    teams = read_verified_json(raw, read_manifest(manifest), "lineups/101.json")
+    assert teams[0]["team_name"] == "Seleção Ávila"
+
+
+def test_read_verified_json_refuses_a_file_changed_after_the_ingestion(fake_source, dirs):
+    ingest(fake_source, dirs)
+    raw, manifest = dirs
+    (raw / "events/101.json").write_bytes(b'[{"id": "adulterado"}]')
+    with pytest.raises(IntegrityError, match=r"events/101\.json"):
+        read_verified_json(raw, read_manifest(manifest), "events/101.json")
+
+
+def test_read_verified_json_refuses_a_file_that_is_not_in_the_manifest(fake_source, dirs):
+    ingest(fake_source, dirs)
+    raw, manifest = dirs
+    entries = read_manifest(manifest)
+    del entries["events/101.json"]
+    with pytest.raises(IntegrityError, match="manifest"):
+        read_verified_json(raw, entries, "events/101.json")
+
+
+def test_read_verified_json_refuses_a_file_that_does_not_exist(fake_source, dirs):
+    ingest(fake_source, dirs)
+    raw, manifest = dirs
+    (raw / "events/101.json").unlink()
+    with pytest.raises(IntegrityError, match=r"events/101\.json"):
+        read_verified_json(raw, read_manifest(manifest), "events/101.json")
 
 
 # --------------------------------------------------------------------------- http_download

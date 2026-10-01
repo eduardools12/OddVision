@@ -121,7 +121,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 | `shot_fidelity_version` | `TEXT` | SIM | `metadata.shot_fidelity_version` | 🟦 | Versão do modelo e precisão de finalizações (afeta o xG) |
 | `xy_fidelity_version` | `TEXT` | SIM | `metadata.xy_fidelity_version` | 🟦 | Precisão das coordenadas |
 | `last_updated` | `TIMESTAMP` | SIM | `last_updated` | 🟦 | Última atualização na fonte |
-| `extra` | `JSONB` | NÃO (`'{}'`) | demais chaves | 🟦 | Técnicos (`home_team.managers`, `away_team.managers`), grupos, IDs e países de estádio/árbitro, `match_status_360`, `last_updated_360`, `competition_stage.id` |
+| `extra` | `JSONB` | NÃO (`'{}'`) | demais chaves | 🟦 | Origem menos o que virou coluna **de `matches` ou das tabelas geradas do mesmo objeto** (`competitions`, `teams`). Sobram: técnicos (`home_team.managers`, `away_team.managers`), grupos (`home_team_group`, `away_team_group`, nulos no mata-mata), `country.id` dos times, `id` e país de estádio e árbitro, `competition_stage.id`, `match_status_360` e `last_updated_360`. Implementado em `transform/matches.py` (`MATCH_MAPPED_PATHS`) |
 
 **Chaves e restrições:**
 - **PK:** `match_id`
@@ -323,7 +323,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 | `size_bytes` | `BIGINT` | NÃO | manifest | 🟩 | Tamanho |
 | `record_count` | `INTEGER` | SIM | manifest | 🟩 | Nº de elementos do array JSON (eventos, partidas, times) |
 | `downloaded_at` | `TIMESTAMPTZ` | NÃO | manifest | 🟩 | Momento do download |
-| `loaded_at` | `TIMESTAMPTZ` | SIM | pipeline | 🟩 | Momento da última carga no `core` |
+| `loaded_at` | `TIMESTAMPTZ` | SIM | pipeline | 🟩 | Momento da última carga **deste arquivo** no `core`. Fica nulo para arquivos ainda não carregados (no Passo 5, só `competitions.json` e o arquivo de partidas; `events` e `lineups` passam a ter valor nos Passos 6 a 8 e 13). Registrar o manifest de novo nunca apaga um `loaded_at` já gravado |
 
 - **PK:** `file_path`
 - Sem FK: é uma tabela de rastreabilidade.
