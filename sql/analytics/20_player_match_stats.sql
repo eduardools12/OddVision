@@ -6,6 +6,7 @@
 --   M2  finalizacoes, finalizacoes_no_alvo
 --   M3  xg, npxg, finalizacoes_sem_penalti, npxg_por_finalizacao_sem_penalti
 --   M4  passes_tentados, passes_completos, pct_acerto_passes
+--   M5  passes_progressivos
 --
 -- Esta view nunca lê colunas JSONB (D05) e nunca grava nada.
 
@@ -34,10 +35,10 @@ WITH played_matches AS (
 ), pass_stats AS (
     -- M4 do jogador, com as mesmas regras do time (analytics.team_match_stats).
     SELECT match_id, player_id,
-           count(*) AS attempted,
-           count(*) FILTER (WHERE is_complete) AS completed
+           count(*) FILTER (WHERE is_tentado) AS attempted,
+           count(*) FILTER (WHERE is_tentado AND is_complete) AS completed,
+           count(*) FILTER (WHERE is_progressivo) AS progressive
     FROM analytics.pass_events
-    WHERE is_tentado
     GROUP BY match_id, player_id
 )
 SELECT l.match_id,
@@ -55,7 +56,8 @@ SELECT l.match_id,
        CASE WHEN COALESCE(ss.shots_no_pen, 0) = 0 THEN NULL ELSE ss.npxg / ss.shots_no_pen END AS npxg_por_finalizacao_sem_penalti,
        COALESCE(pst.attempted, 0)::integer AS passes_tentados,
        COALESCE(pst.completed, 0)::integer AS passes_completos,
-       CASE WHEN COALESCE(pst.attempted, 0) = 0 THEN NULL ELSE 100.0 * pst.completed / pst.attempted END::double precision AS pct_acerto_passes
+       CASE WHEN COALESCE(pst.attempted, 0) = 0 THEN NULL ELSE 100.0 * pst.completed / pst.attempted END::double precision AS pct_acerto_passes,
+       COALESCE(pst.progressive, 0)::integer AS passes_progressivos
 FROM core.lineups l
 JOIN played_matches pm ON pm.match_id = l.match_id
 JOIN core.players p ON p.player_id = l.player_id

@@ -37,6 +37,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D29 | Camada analytics: views recriadas dos arquivos e três camadas de prova | Aceita |
 | D30 | Finalizações como view de eventos (`shot_events`) e M2/M3 sobre ela | Aceita |
 | D31 | Passes como view de eventos (`pass_events`) e M4 sobre ela | Aceita |
+| D32 | Passes progressivos (M5): a convenção mora em `pass_events` | Aceita |
 
 ---
 
@@ -452,3 +453,13 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
   - **`pct_acerto_passes` não é arredondado na view** (0 a 100, `double precision`, `NULL` sem passes tentados). O arredondamento a 1 casa de `docs/metrics.md` é de apresentação: arredondar na origem perderia precisão para quem agregar depois.
   - **Guarda nova nos arquivos de `analytics`:** nenhum pode conter o caractere `%`, nem em comentário, porque o driver (psycopg) o lê como início de parâmetro e a aplicação falha. Também há um teste de que cada view é definida em arquivo de número menor que os arquivos que a leem.
 - **Validação:** 28 testes sintéticos (cada `pass_type` e cada `outcome`, período 5, Σ jogadores = time, percentual nulo), a referência da final (Argentina 661/538, 81,4; França 544/414, 76,1) e 11 mutações, todas detectadas.
+
+## D32 — Passes progressivos (M5): a convenção mora em `pass_events`
+
+- **Contexto:** M5 é a **convenção OddVision v1** (D09). A mesma regra alimenta a contagem por time e por jogador e, no Passo 12, o mapa de passes progressivos.
+- **Decisão:**
+  - `pass_events.is_progressivo` (coluna nova no fim) implementa a fórmula de `docs/metrics.md` com os dois parâmetros numa CTE `params` (`min_start_x = 48`, `min_gain_yd = 10`); `passes_progressivos` só conta a marcação. Mudar a convenção é mudar esses números num único lugar.
+  - **A fórmula governa os casos de borda:** um passe de dentro da área para dentro da área com ganho de pelo menos 10 jardas (por exemplo, de `x = 102` a `x = 120`) **é** progressivo, pelo critério de distância. O que a convenção exclui é a *entrada* na área quando o passe já começa dentro (um passe curto dentro da área não conta). O notebook de referência da final aplica a mesma fórmula, e os dois concordam (56 e 39).
+  - Valores ausentes: se `x`/`y` de início faltarem, o passe não é progressivo (`COALESCE(..., false)`), nunca `NULL`.
+  - As contagens de M4 passaram a usar `count(*) FILTER (...)` sobre todos os passes, para M4 e M5 compartilharem um agrupamento.
+- **Validação:** 36 testes (fronteiras de ganho 9,99/10,00/10,01, de início 47,9/48,0/48,1, da área em `x = 102` e `y = 18`/`62` incluindo 101,99, 17,99 e 62,01; incompletos, bolas paradas, período 5; Σ jogadores = time; subconjunto dos completos de jogo corrido), a referência da final (Argentina 56, França 39) e 18 mutações (cada parâmetro, cada comparação, a geometria e as exclusões), todas detectadas. A inspeção visual de 20 passes, prevista em `docs/metrics.md`, fica para o mapa do Passo 12.

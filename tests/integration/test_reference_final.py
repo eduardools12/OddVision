@@ -124,6 +124,25 @@ def test_m4_every_loaded_match_respects_the_invariants(final):
     assert broken == []
 
 
+@pytest.mark.parametrize("name", list(TEAMS))
+def test_m5_progressive_passes_of_the_final(final, name):
+    assert team_row(final, name).passes_progressivos == TEAMS[name]["passes_progressivos"]
+
+
+def test_m5_the_players_of_the_final_add_up_to_each_team_and_are_a_subset_of_completed_passes(final):
+    for name in TEAMS:
+        team = team_row(final, name)
+        total = final.execute(text(
+            "SELECT sum(passes_progressivos) FROM analytics.player_match_stats WHERE match_id = :m AND team_id = :t"),
+            {"m": FINAL, "t": team.team_id}).scalar_one()
+        assert total == team.passes_progressivos <= team.passes_completos
+
+
+def test_m5_every_loaded_match_respects_the_subset_invariant(final):
+    broken = final.execute(text("SELECT match_id, team_id FROM analytics.team_match_stats WHERE passes_progressivos > passes_completos")).all()
+    assert broken == []
+
+
 def test_m1_every_loaded_match_reproduces_its_official_score(final):
     wrong = final.execute(text("SELECT match_id FROM analytics.match_summary WHERE has_events AND NOT score_matches_events")).all()
     assert wrong == []

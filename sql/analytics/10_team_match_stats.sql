@@ -5,6 +5,7 @@
 --   M2  finalizacoes, finalizacoes_no_alvo
 --   M3  xg, npxg, finalizacoes_sem_penalti, npxg_por_finalizacao_sem_penalti
 --   M4  passes_tentados, passes_completos, pct_acerto_passes
+--   M5  passes_progressivos
 --
 -- Esta view nunca lê colunas JSONB (D05) e nunca grava nada.
 
@@ -48,11 +49,12 @@ WITH played_matches AS (
     GROUP BY match_id, team_id
 ), pass_stats AS (
     -- M4: só os passes tentados (analytics.pass_events define o que é tentado); completos são um subconjunto deles.
+    -- M5: passes progressivos, marcados em analytics.pass_events (a convenção mora lá, em um só lugar).
     SELECT match_id, team_id,
-           count(*) AS attempted,
-           count(*) FILTER (WHERE is_complete) AS completed
+           count(*) FILTER (WHERE is_tentado) AS attempted,
+           count(*) FILTER (WHERE is_tentado AND is_complete) AS completed,
+           count(*) FILTER (WHERE is_progressivo) AS progressive
     FROM analytics.pass_events
-    WHERE is_tentado
     GROUP BY match_id, team_id
 )
 SELECT mt.match_id,
@@ -75,7 +77,9 @@ SELECT mt.match_id,
        -- M4: passes tentados, completos e percentual de acerto (0 a 100, sem arredondar; NULL sem passes tentados)
        COALESCE(pst.attempted, 0)::integer AS passes_tentados,
        COALESCE(pst.completed, 0)::integer AS passes_completos,
-       CASE WHEN COALESCE(pst.attempted, 0) = 0 THEN NULL ELSE 100.0 * pst.completed / pst.attempted END::double precision AS pct_acerto_passes
+       CASE WHEN COALESCE(pst.attempted, 0) = 0 THEN NULL ELSE 100.0 * pst.completed / pst.attempted END::double precision AS pct_acerto_passes,
+       -- M5: passes progressivos (convenção OddVision v1)
+       COALESCE(pst.progressive, 0)::integer AS passes_progressivos
 FROM match_teams mt
 JOIN core.teams t ON t.team_id = mt.team_id
 LEFT JOIN shot_goals g ON g.match_id = mt.match_id AND g.team_id = mt.team_id
