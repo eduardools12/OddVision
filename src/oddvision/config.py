@@ -61,6 +61,11 @@ def ddl_dir(root: Path) -> Path:
     return root / "sql" / "ddl"
 
 
+def analytics_dir(root: Path) -> Path:
+    """Pasta das views de métricas (10_*.sql, 20_*.sql…), aplicadas em ordem pelo `init-db`. Só views (D05)."""
+    return root / "sql" / "analytics"
+
+
 def checks_dir(root: Path) -> Path:
     """Pasta dos checks de qualidade (C01_*.sql…), executados por `check`."""
     return root / "sql" / "checks"

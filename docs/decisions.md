@@ -34,6 +34,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D26 | Autorização permanente do autor para commitar e avançar de passo | Aceita |
 | D27 | Eventos especializados: nada se perde em silêncio | Aceita |
 | D28 | Checks de qualidade: arquivos SQL, erro e aviso, e prova de que falham | Aceita |
+| D29 | Camada analytics: views recriadas dos arquivos e três camadas de prova | Aceita |
 
 ---
 
@@ -414,3 +415,17 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 - **Desvio do plano:** o plano previa os arquivos `events_corrupted.json` e `matches_corrupted.json`. Corromper o estado do banco com SQL é mais direto e mais preciso (cada teste diz exatamente o que foi quebrado), e dispensa duas fixtures grandes.
 - **Resultado nos dados reais (3 sentinelas):** **0 erros e 1 aviso** (o C11, com os 4 jogadores de nome divergente já conhecidos). A amostra parcial dos testes, por outro lado, é **rejeitada** pelo `all`: o placar (C02) e os 11 titulares (C07) não fecham com 22 de 4.407 eventos e 9 jogadores, como devem.
 - **Consequências:** os checks viram o critério de aceite da carga das 64 partidas (Passo 13). O `check` roda no banco principal configurado (`databases.main`) e, sem os arquivos brutos, pula o C11 e avisa.
+
+## D29 — Camada analytics: views recriadas dos arquivos e três camadas de prova
+
+- **Contexto:** o Passo 10 cria as 8 métricas como views SQL em `sql/analytics/`. O `init-db` só conhecia o DDL do `core`, e é preciso decidir como as views são aplicadas e como provar que cada métrica está certa.
+- **Decisão:**
+  - **O `init-db` apaga as views do schema `analytics` e as recria dos arquivos**, em ordem de nome (`10_…`, `20_…`), numa única transação. Views não guardam dados, então isso é seguro. A política evita o erro do `CREATE OR REPLACE VIEW` quando as colunas mudam e faz o banco refletir exatamente os arquivos (uma view removida do repositório some do banco). Se o schema tiver uma **tabela**, a operação é recusada antes de apagar qualquer coisa (contrato: só views). Pasta ausente não faz nada, e nunca apaga as views por causa disso.
+  - **Os arquivos de `analytics` só podem conter** `CREATE VIEW analytics.x` e `COMMENT ON VIEW` (um teste confere cada arquivo). Nenhum operador, função JSON nem a coluna `extra` (D05).
+  - **Nomes de arquivo `NN_nome.sql`** e dependências respeitadas pela ordem. Cada passo do plano **acrescenta colunas no fim** das views `team_match_stats` e `player_match_stats`: as colunas anteriores não mudam.
+  - **Três camadas de prova por métrica**, como o plano pede: (1) **dados sintéticos** com fronteiras exatas, montados por um construtor (`World`, em `tests/integration/conftest.py`) dentro de uma transação desfeita; (2) a **referência da final**, calculada no Passo 2 por um notebook independente e conferida nos dados reais; (3) **invariantes** (por exemplo, Σ gols dos jogadores + gols contra = gols do time).
+  - **Os testes de referência só leem o banco principal:** aplicam as views numa transação que é desfeita no fim, então nada muda no banco do autor. Sem a final carregada (4.407 eventos), são pulados com o motivo.
+  - **Pares (partida, time) e (partida, jogador) só existem para partidas com eventos carregados.** O `match_summary` cobre todas as partidas e traz `NULL` na reconstrução quando não há eventos.
+  - **Zero e `NULL` têm significados diferentes**, e as views os respeitam: contagens sem ocorrência são 0; taxas com denominador 0 são `NULL`; `penaltis_disputa` é `NULL` quando não houve disputa e 0 quando houve e nenhum pênalti foi convertido.
+- **Alternativas:** *`CREATE OR REPLACE VIEW` com migrações* (mais passos manuais para views que não têm dados); *views materializadas* (dados para manter em dia, sem necessidade neste volume); *funções SQL para a distância e a área* (o schema passa a ter outros objetos além de views; preferi expressões inline com uma CTE `params`).
+- **Consequências:** mudar uma métrica é mudar um arquivo SQL e rodar `init-db`; nenhum dado é reprocessado (D15).

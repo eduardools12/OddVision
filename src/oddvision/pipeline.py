@@ -17,6 +17,7 @@ from oddvision.checks import format_report, has_errors, run_checks
 from oddvision.config import (
     PROJECT_ROOT,
     ConfigError,
+    analytics_dir,
     checks_dir,
     database_config_path,
     ddl_dir,
@@ -25,7 +26,7 @@ from oddvision.config import (
     raw_dir,
     selection_path,
 )
-from oddvision.db import apply_ddl, core_table_names, ddl_files, load_database_config, make_engine
+from oddvision.db import apply_analytics, apply_ddl, core_table_names, ddl_files, load_database_config, make_engine
 from oddvision.ingest import IngestError, http_download, read_manifest, run_ingest
 from oddvision.load import LoadError, load_matches, load_p2
 from oddvision.transform.common import TransformError
@@ -63,6 +64,8 @@ def _cmd_init_db(root: Path) -> int:
     try:
         applied = apply_ddl(engine, ddl_dir(root))
         tables = core_table_names(engine)
+        with engine.begin() as conn:  # as views de analytics são recriadas dos arquivos (D29)
+            analytics = apply_analytics(conn, analytics_dir(root))
     except SQLAlchemyError as exc:
         print(
             f"erro: não foi possível aplicar o DDL no banco {config.main_db} "
@@ -76,6 +79,8 @@ def _cmd_init_db(root: Path) -> int:
     print(f"banco: {config.main_db} em {config.host}:{config.port} (usuário {config.user})")
     print(f"DDL aplicado: {', '.join(applied)}")
     print(f"core: {len(tables)} tabelas")
+    if analytics:
+        print(f"analytics: {len(analytics)} arquivo{'' if len(analytics) == 1 else 's'} aplicado{'' if len(analytics) == 1 else 's'}: {', '.join(analytics)}")
     return 0
 
 

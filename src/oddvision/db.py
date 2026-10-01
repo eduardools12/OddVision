@@ -9,7 +9,7 @@ from __future__ import annotations
 from dataclasses import dataclass, field
 from pathlib import Path
 
-from sqlalchemy import URL, Engine, create_engine, text
+from sqlalchemy import URL, Connection, Engine, create_engine, text
 
 from oddvision.config import ConfigError, read_toml, require
 
@@ -82,6 +82,35 @@ def apply_ddl(engine: Engine, directory: Path) -> list[str]:
             conn.exec_driver_sql(path.read_text(encoding="utf-8"))
         applied.append(path.name)
     return applied
+
+
+def analytics_files(directory: Path) -> list[Path]:
+    """Arquivos .sql das views de métricas em ordem de nome. Pasta ausente = nenhum arquivo (não é erro)."""
+    if not directory.is_dir():
+        return []
+    return sorted(directory.glob("*.sql"), key=lambda p: p.name)
+
+
+def apply_analytics(conn: Connection, directory: Path) -> list[str]:
+    """Recria as views do schema analytics a partir dos arquivos. Devolve os nomes aplicados.
+
+    As views não guardam dados: apaga as que existem (com as dependentes) e cria de novo na ordem dos arquivos.
+    Assim o banco reflete exatamente os arquivos. Se o schema tiver uma TABELA, recusa antes de apagar qualquer
+    coisa (o contrato é: só views). Sem arquivos (pasta ausente), não faz nada. A transação é de quem chama.
+    """
+    files = analytics_files(directory)
+    if not files:
+        return []
+    tables = list(conn.exec_driver_sql(
+        "SELECT table_name FROM information_schema.tables WHERE table_schema = 'analytics' AND table_type = 'BASE TABLE'"
+    ).scalars())
+    if tables:
+        raise ConfigError(f"o schema analytics só pode ter views, mas tem tabela(s): {tables}")
+    for view in list(conn.exec_driver_sql("SELECT table_name FROM information_schema.views WHERE table_schema = 'analytics'").scalars()):
+        conn.exec_driver_sql('DROP VIEW IF EXISTS analytics."' + view.replace('"', '""') + '" CASCADE')
+    for path in files:
+        conn.exec_driver_sql(path.read_text(encoding="utf-8"))
+    return [path.name for path in files]
 
 
 def core_table_names(engine: Engine) -> list[str]:
