@@ -39,6 +39,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D31 | Passes como view de eventos (`pass_events`) e M4 sobre ela | Aceita |
 | D32 | Passes progressivos (M5): a convenção mora em `pass_events` | Aceita |
 | D33 | Conduções progressivas (M6) e parâmetros compartilhados da convenção | Aceita |
+| D34 | Passes para a área (M7) | Aceita |
 
 ---
 
@@ -472,4 +473,10 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
   - `analytics.convention_params` (`01_convention_params.sql`) é uma view de uma linha com `min_start_x` e `min_gain_yd`; `pass_events` e `carry_events` fazem `CROSS JOIN` com ela. Isto substitui a CTE `params` que a D32 descrevia dentro de `pass_events`.
   - `analytics.carry_events` (`07_carry_events.sql`) tem uma linha por `Carry` e `is_progressivo`: período 1 a 4, início em `x ≥ min_start_x` e (ganho ≥ `min_gain_yd` OU entrada na área). **Não há filtro de "completa"**: a condução não tem resultado na fonte.
   - `conducoes_progressivas` (time e jogador) conta a marcação. Os casos de borda seguem os da M5 (D32): de dentro da área para dentro com ganho de 10 jardas ou mais é progressiva.
-- **Validação:** 27 testes (as mesmas fronteiras da M5 aplicadas a `Carry`; Σ jogadores = time; condução e passe não se misturam; um teste que garante que passe e condução com a mesma geometria recebem a mesma marcação), a referência da final (Argentina 30, França 31) e 18 mutações (parâmetros, comparações, geometria, período, agregações e duas da M5), todas detectadas.
+- **Validação (M6):** 27 testes (as mesmas fronteiras da M5 aplicadas a `Carry`; Σ jogadores = time; condução e passe não se misturam; um teste que garante que passe e condução com a mesma geometria recebem a mesma marcação), a referência da final (Argentina 30, França 31) e 18 mutações (parâmetros, comparações, geometria, período, agregações e duas da M5), todas detectadas.
+
+## D34 — Passes para a área (M7)
+
+- **Contexto:** M7 é uma convenção **geométrica** (a área do campo do StatsBomb), diferente de M5 e M6, que são limiares de progressão.
+- **Decisão:** `pass_events.is_passe_para_area` (coluna nova no fim) marca o passe completo, de jogo corrido, período 1 a 4, que começa **fora** da área e termina **dentro** dela, com limites inclusivos (`x ≥ 102` e `18 ≤ y ≤ 62`). **M7 não herda os limiares da M5**: um passe de `x = 30` até a área é "para a área" mesmo sem ser progressivo (o teste confere os dois valores). Começar ao lado da área (`y` fora de 18 a 62) e terminar dentro é entrada; começar em `x = 102` não é. Dados de início ausentes não geram marcação (`COALESCE(..., false)`). `passes_para_area` conta a marcação, por time e por jogador.
+- **Validação:** 37 testes (fronteiras `x = 101,99/102,00/102,01`, `y = 17,99/18/62/62,01` no fim e no início; incompletos, bolas paradas, período 5; Σ jogadores = time; subconjunto dos completos de jogo corrido), a referência da final (Argentina 7, França 3) e 15 mutações (cada fronteira, início e fim, cada exclusão, um limiar herdado por engano), todas detectadas.

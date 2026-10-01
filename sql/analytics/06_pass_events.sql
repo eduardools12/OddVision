@@ -1,7 +1,7 @@
 -- analytics.pass_events: uma linha por passe (todos, com as marcações que as métricas de passe usam).
 --
--- O número 06 faz este arquivo rodar ANTES das views de estatísticas (10, 20), que leem esta view. Os passos
--- seguintes (M7) acrescentam colunas NO FIM.
+-- O número 06 faz este arquivo rodar ANTES das views de estatísticas (10, 20), que leem esta view. Cada passo
+-- acrescenta colunas NO FIM.
 --
 --   is_jogo_corrido  pass_type nulo (regular), 'Recovery' ou 'Interception'. Exclui bolas paradas e lateral
 --   is_tentado       M4: passe tentado = período 1 a 4, não é 'Throw-in' (cobrado com a mão) e o resultado não é
@@ -9,6 +9,8 @@
 --   is_progressivo   M5, CONVENÇÃO OddVision v1: passe completo, de jogo corrido, período 1 a 4, com início em
 --                    x >= min_start_x e que (aproxima a bola do gol em pelo menos min_gain_yd jardas OU entra na
 --                    área). Distância ao gol = distância até o centro do gol, (120, 40). Área: x >= 102 e y de 18 a 62
+--   is_passe_para_area  M7, convenção geométrica: passe completo, de jogo corrido, período 1 a 4, que começa FORA da
+--                    área e termina DENTRO dela (limites inclusivos). Não herda os limiares da M5
 --
 -- "Passe completo" é is_complete (resultado ausente na fonte). Nunca lê colunas JSONB (D05).
 
@@ -58,6 +60,11 @@ SELECT b.*,
            AND b.x >= pr.min_start_x
            AND (sqrt((120 - b.x) ^ 2 + (40 - b.y) ^ 2) - sqrt((120 - b.end_x) ^ 2 + (40 - b.end_y) ^ 2) >= pr.min_gain_yd
                 OR (NOT (b.x >= 102 AND b.y BETWEEN 18 AND 62) AND (b.end_x >= 102 AND b.end_y BETWEEN 18 AND 62))),
-           false) AS is_progressivo
+           false) AS is_progressivo,
+       COALESCE(
+           b.is_complete AND b.is_jogo_corrido AND b.period <= 4
+           AND NOT (b.x >= 102 AND b.y BETWEEN 18 AND 62)
+           AND (b.end_x >= 102 AND b.end_y BETWEEN 18 AND 62),
+           false) AS is_passe_para_area
 FROM base b
 CROSS JOIN analytics.convention_params pr;

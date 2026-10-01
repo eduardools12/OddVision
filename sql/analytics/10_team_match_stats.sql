@@ -7,6 +7,7 @@
 --   M4  passes_tentados, passes_completos, pct_acerto_passes
 --   M5  passes_progressivos
 --   M6  conducoes_progressivas
+--   M7  passes_para_area
 --
 -- Esta view nunca lê colunas JSONB (D05) e nunca grava nada.
 
@@ -54,7 +55,8 @@ WITH played_matches AS (
     SELECT match_id, team_id,
            count(*) FILTER (WHERE is_tentado) AS attempted,
            count(*) FILTER (WHERE is_tentado AND is_complete) AS completed,
-           count(*) FILTER (WHERE is_progressivo) AS progressive
+           count(*) FILTER (WHERE is_progressivo) AS progressive,
+           count(*) FILTER (WHERE is_passe_para_area) AS into_box
     FROM analytics.pass_events
     GROUP BY match_id, team_id
 ), carry_stats AS (
@@ -88,7 +90,9 @@ SELECT mt.match_id,
        -- M5: passes progressivos (convenção OddVision v1)
        COALESCE(pst.progressive, 0)::integer AS passes_progressivos,
        -- M6: conduções progressivas (convenção OddVision v1)
-       COALESCE(cst.progressive, 0)::integer AS conducoes_progressivas
+       COALESCE(cst.progressive, 0)::integer AS conducoes_progressivas,
+       -- M7: passes completos de jogo corrido de fora para dentro da área
+       COALESCE(pst.into_box, 0)::integer AS passes_para_area
 FROM match_teams mt
 JOIN core.teams t ON t.team_id = mt.team_id
 LEFT JOIN shot_goals g ON g.match_id = mt.match_id AND g.team_id = mt.team_id

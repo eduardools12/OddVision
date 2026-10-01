@@ -163,6 +163,25 @@ def test_m6_progressive_carries_are_a_subset_of_the_carries(final):
     assert broken == []
 
 
+@pytest.mark.parametrize("name", list(TEAMS))
+def test_m7_passes_into_the_box_of_the_final(final, name):
+    assert team_row(final, name).passes_para_area == TEAMS[name]["passes_para_area"]
+
+
+def test_m7_the_players_of_the_final_add_up_to_each_team_and_are_a_subset_of_completed_passes(final):
+    for name in TEAMS:
+        team = team_row(final, name)
+        total = final.execute(text(
+            "SELECT sum(passes_para_area) FROM analytics.player_match_stats WHERE match_id = :m AND team_id = :t"),
+            {"m": FINAL, "t": team.team_id}).scalar_one()
+        assert total == team.passes_para_area <= team.passes_completos
+
+
+def test_m7_every_loaded_match_respects_the_subset_invariant(final):
+    broken = final.execute(text("SELECT match_id, team_id FROM analytics.team_match_stats WHERE passes_para_area > passes_completos")).all()
+    assert broken == []
+
+
 def test_m1_every_loaded_match_reproduces_its_official_score(final):
     wrong = final.execute(text("SELECT match_id FROM analytics.match_summary WHERE has_events AND NOT score_matches_events")).all()
     assert wrong == []
