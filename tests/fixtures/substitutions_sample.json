@@ -1,0 +1,90 @@
+[
+  {
+    "id": "df245155-92fc-4123-8bcf-66ba2ee77870",
+    "index": 1378,
+    "period": 1,
+    "timestamp": "00:40:32.571",
+    "minute": 40,
+    "second": 32,
+    "type": {
+      "id": 19,
+      "name": "Substitution"
+    },
+    "possession": 60,
+    "possession_team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "play_pattern": {
+      "id": 1,
+      "name": "Regular Play"
+    },
+    "team": {
+      "id": 771,
+      "name": "France"
+    },
+    "player": {
+      "id": 5477,
+      "name": "Ousmane Dembélé"
+    },
+    "position": {
+      "id": 17,
+      "name": "Right Wing"
+    },
+    "duration": 0.0,
+    "substitution": {
+      "outcome": {
+        "id": 103,
+        "name": "Tactical"
+      },
+      "replacement": {
+        "id": 22097,
+        "name": "Randal Kolo Muani"
+      }
+    }
+  },
+  {
+    "id": "bae6c6ee-59b6-419e-992d-7567437736f5",
+    "index": 1379,
+    "period": 1,
+    "timestamp": "00:41:01.496",
+    "minute": 41,
+    "second": 1,
+    "type": {
+      "id": 19,
+      "name": "Substitution"
+    },
+    "possession": 60,
+    "possession_team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "play_pattern": {
+      "id": 1,
+      "name": "Regular Play"
+    },
+    "team": {
+      "id": 771,
+      "name": "France"
+    },
+    "player": {
+      "id": 3604,
+      "name": "Olivier Giroud"
+    },
+    "position": {
+      "id": 23,
+      "name": "Center Forward"
+    },
+    "duration": 0.0,
+    "substitution": {
+      "outcome": {
+        "id": 103,
+        "name": "Tactical"
+      },
+      "replacement": {
+        "id": 2972,
+        "name": "Marcus Thuram"
+      }
+    }
+  }
+]

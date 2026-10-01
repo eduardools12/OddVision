@@ -1,9 +1,10 @@
 """Testes de transform/lineups.py: escalações JSON -> DataFrames de lineups e players.
 
-tests/fixtures/lineups_sample.json: 7 jogadores REAIS da final (3869685), copiados sem alteração:
+tests/fixtures/lineups_sample.json: 9 jogadores REAIS da final (3869685), copiados sem alteração:
 - França: Mbappé (titular), Thuram (reserva que entrou, 1 cartão), Areola (não entrou).
 - Argentina: Messi (titular, `positions` fora de ordem), Acuña (reserva que entrou, 1 cartão,
-  `positions` fora de ordem), E. Martínez (goleiro titular, 1 cartão), Armani (não entrou).
+  `positions` fora de ordem), E. Martínez (goleiro titular, 1 cartão), Armani (não entrou), e os titulares
+  Di María e Otamendi (destinatários de passes da amostra de eventos, que precisam existir em players).
 """
 
 import copy
@@ -27,6 +28,7 @@ MATCH = 3869685
 FRANCE, ARGENTINA = 771, 779
 MBAPPE, THURAM, AREOLA = 3009, 2972, 3379
 MESSI, ACUNA, MARTINEZ, ARMANI = 5503, 19597, 6909, 6312
+DI_MARIA, OTAMENDI = 2995, 3090
 
 
 @pytest.fixture
@@ -54,7 +56,8 @@ def test_one_row_per_listed_player_sorted_by_team_and_player(teams):
     frame = lineups_frame(MATCH, teams)
     assert [(r.team_id, r.player_id) for r in frame.itertuples()] == [
         (FRANCE, THURAM), (FRANCE, MBAPPE), (FRANCE, AREOLA),
-        (ARGENTINA, MESSI), (ARGENTINA, ARMANI), (ARGENTINA, MARTINEZ), (ARGENTINA, ACUNA),
+        (ARGENTINA, DI_MARIA), (ARGENTINA, OTAMENDI), (ARGENTINA, MESSI), (ARGENTINA, ARMANI),
+        (ARGENTINA, MARTINEZ), (ARGENTINA, ACUNA),
     ]
     assert (frame.match_id == MATCH).all()  # o match_id vem do nome do arquivo, não do conteúdo
 
@@ -67,6 +70,8 @@ def test_one_row_per_listed_player_sorted_by_team_and_player(teams):
     (ACUNA, 8, False, True, "Left Wing"),
     (MARTINEZ, 23, True, True, "Goalkeeper"),
     (ARMANI, 1, False, False, None),
+    (DI_MARIA, 11, True, True, "Left Wing"),
+    (OTAMENDI, 19, True, True, "Left Center Back"),
 ])
 def test_derived_columns_of_the_real_players(teams, player_id, jersey, starter, played, first_position):
     r = row(lineups_frame(MATCH, teams), player_id)
@@ -76,8 +81,8 @@ def test_derived_columns_of_the_real_players(teams, player_id, jersey, starter, 
 def test_starters_and_players_who_entered_per_team(teams):
     frame = lineups_frame(MATCH, teams)
     by_team = frame.groupby("team_id")
-    assert by_team.is_starter.sum().to_dict() == {FRANCE: 1, ARGENTINA: 2}
-    assert by_team.played.sum().to_dict() == {FRANCE: 2, ARGENTINA: 3}
+    assert by_team.is_starter.sum().to_dict() == {FRANCE: 1, ARGENTINA: 4}
+    assert by_team.played.sum().to_dict() == {FRANCE: 2, ARGENTINA: 5}
 
 
 def test_a_player_who_did_not_play_is_never_a_starter(teams):
@@ -202,7 +207,7 @@ def file_with(*players):
 def test_resolve_players_has_one_row_per_player_sorted_by_id(teams):
     frame, conflicts = resolve_players({MATCH: teams})
     assert list(frame.columns) == list(PLAYER_COLUMNS)
-    assert list(frame.player_id) == sorted([MBAPPE, THURAM, AREOLA, MESSI, ACUNA, MARTINEZ, ARMANI])
+    assert list(frame.player_id) == sorted([MBAPPE, THURAM, AREOLA, MESSI, ACUNA, MARTINEZ, ARMANI, DI_MARIA, OTAMENDI])
     messi = frame.loc[frame.player_id == MESSI].iloc[0]
     assert (messi.player_name, messi.player_nickname, messi.country_name) == (
         "Lionel Andrés Messi Cuccittini", "Lionel Messi", "Argentina")

@@ -85,6 +85,18 @@ def optional_text(obj, path, context):
     return check_type(optional(obj, path), str, ".".join(path), context)
 
 
+def float_value(value: Any, field: str, context: str) -> float:
+    """Um número (int ou float, nunca bool) como float."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        raise TransformError(f"{context}: {field} deve ser numérico, recebido {value!r}")
+    return float(value)
+
+
+def optional_float(obj, path, context):
+    value = optional(obj, path)
+    return None if value is None else float_value(value, ".".join(path), context)
+
+
 def parse_field(value: Any, parser: Callable[[str], Any], field: str, context: str) -> Any:
     """Aplica `parser` (ex.: date.fromisoformat); falha com o campo e o contexto."""
     try:

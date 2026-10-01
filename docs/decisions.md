@@ -32,6 +32,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D24 | Escalações: ordem cronológica das posições e atributos dos jogadores | Aceita |
 | D25 | Eventos: o que sai do `extra`, tempo exato e carga na transação da partida | Aceita |
 | D26 | Autorização permanente do autor para commitar e avançar de passo | Aceita |
+| D27 | Eventos especializados: nada se perde em silêncio | Aceita |
 
 ---
 
@@ -380,3 +381,21 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
   - **Decisões que mudam o que a spec aprovou** continuam sendo registradas em `decisions.md` e destacadas no resumo ao autor, para que ele possa revê-las. Avançar sem consultar não é decidir em silêncio.
 - **Alternativas:** manter a consulta a cada passo (mais lento, com o mesmo resultado quando tudo passa).
 - **Consequências:** o histórico do Git passa a ser escrito pelo assistente, mas cada commit é revisável a qualquer momento (`git show`, `git revert`), e o autor pode revogar esta decisão quando quiser.
+
+## D27 — Eventos especializados: nada se perde em silêncio
+
+- **Contexto:** o Passo 8 move os objetos `shot`, `pass`, `carry` e `substitution`, e os cartões, de `events.extra` (D25) para as tabelas próprias. Três dessas tabelas (`carries`, `cards`, `substitutions`) não têm `extra`. Sem cuidado, uma chave nova da fonte, ou um objeto no evento errado, sumiria sem aviso.
+- **Decisão:**
+  - **Uma tabela por tipo, ligada ao evento pelo `event_id`**, na mesma transação da partida (D06), depois de `events` (cada linha aponta para um evento). Recarregar apaga os eventos da partida e as tabelas filhas saem em cascata.
+  - **Falhar em vez de perder.** Em `carries`, `cards` e `substitutions`, qualquer chave que o modelo não guarda faz a transformação falhar, com o id do evento. Em `shots` e `passes` a sobra vai para o `extra` da tabela.
+  - **Consistência tipo e objeto, nos dois sentidos:** um objeto `shot`, `pass`, `carry` ou `substitution` em um evento de outro tipo é erro, e um evento do tipo sem o seu objeto também. Isso fecha o buraco aberto pelo D25, em que o objeto já não fica no `events.extra`.
+  - **`is_complete` é a ausência de `outcome`**, e o banco a reforça com a `CHECK` `is_complete = (outcome IS NULL)`. `pass_type` nulo é passe regular.
+  - **`recipient.name` não é guardado** (já está em `core.players`, e todo destinatário das 64 partidas está nas escalações). O objeto `technique` do passe fica inteiro no `extra`.
+  - **`end_z` é nulo exatamente nos chutes sem altura** (`Blocked` e `Wayward`, que só trazem x e y).
+  - **`key_pass_id` só pode apontar para um evento do mesmo arquivo** (verificado na transformação; no banco a FK é adiada, D22).
+  - **O xG vem do StatsBomb**, é validado entre 0 e 1 com o id do evento, e o de todos os 12 pênaltis das sentinelas é 0,7835.
+  - **Os cartões dos eventos e os das escalações são conferidos entre si** (partida, jogador e tipo). Nas 3 sentinelas os 14 batem.
+- **Alternativas:** *guardar o objeto bruto em colunas `extra` também nas três tabelas pequenas* (mais colunas por uma informação derivável); *ignorar chaves novas* (perda silenciosa, o que o projeto não admite).
+- **Consequências:**
+  - `card.id`, `substitution.outcome.id` e `replacement.name` não são guardados. Se um dia a fonte trouxer algo novo nesses objetos, a carga para e a decisão passa a ser do autor.
+  - Medição: 3 partidas (11.444 eventos e 6.002 linhas especializadas) carregam em cerca de 6 s. Projeção linear para as 64 partidas: menos de 2 minutos. Sem necessidade de otimizar por ora.

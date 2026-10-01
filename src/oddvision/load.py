@@ -1,4 +1,4 @@
-"""Carga no schema core (P2: competições, times e partidas; P3: escalações; P4: eventos).
+"""Carga no schema core (P2: competições, times e partidas; P3: escalações; P4: eventos; P5: eventos especializados).
 
 Duas ideias organizam este módulo:
 
@@ -28,6 +28,13 @@ from sqlalchemy import Connection, Engine, text
 
 from oddvision.config import Selection
 from oddvision.ingest import IngestError, ManifestEntry, read_manifest, read_verified_json
+from oddvision.transform.event_details import (
+    cards_frame,
+    carries_frame,
+    passes_frame,
+    shots_frame,
+    substitutions_frame,
+)
 from oddvision.transform.events import events_frame
 from oddvision.transform.lineups import AttributeConflict, lineups_frame, resolve_players
 from oddvision.transform.matches import competitions_frame, matches_frame, teams_frame
@@ -197,6 +204,11 @@ class MatchResult:
     starters: int
     played: int  # relacionados que entraram em campo
     events: int  # eventos gravados em core.events
+    shots: int
+    passes: int
+    carries: int
+    cards: int
+    substitutions: int
     player_ids: tuple[int, ...]
 
 
@@ -237,17 +249,26 @@ def load_match(
     *,
     now: Callable[[], datetime] = _utc_now,
 ) -> MatchResult:
-    """Carrega UMA partida em uma transação (D06): escalações (P3) e eventos (P4).
+    """Carrega UMA partida em uma transação (D06): escalações (P3), eventos (P4) e eventos especializados (P5).
 
     Os dois arquivos são lidos e transformados ANTES de abrir a transação. Dentro dela, na ordem das FKs:
-    players (upsert) -> DELETE da partida (lineups e events) -> INSERT de lineups e events -> loaded_at.
+    players (upsert) -> DELETE da partida (lineups e events, que leva as tabelas filhas por cascata) ->
+    INSERT de lineups, events, shots, passes, carries, cards e substitutions -> loaded_at dos arquivos.
     Os dados da partida são apagados e inseridos de novo: recarregar nunca duplica nem deixa linhas velhas.
     `players`: tabela de jogadores já resolvida (`build_player_table`); só os da partida são gravados.
     Se qualquer passo falhar, a partida volta ao estado anterior. Outras partidas nunca são tocadas.
     """
     lineups_rel, events_rel = f"lineups/{match_id}.json", f"events/{match_id}.json"
     lineups = lineups_frame(match_id, read_verified_json(raw_dir, entries, lineups_rel))
-    events = events_frame(match_id, read_verified_json(raw_dir, entries, events_rel))
+    raw_events = read_verified_json(raw_dir, entries, events_rel)
+    events = events_frame(match_id, raw_events)
+    details = {  # tabela -> DataFrame, na ordem em que são inseridas
+        "shots": shots_frame(match_id, raw_events),
+        "passes": passes_frame(match_id, raw_events),
+        "carries": carries_frame(match_id, raw_events),
+        "cards": cards_frame(match_id, raw_events),
+        "substitutions": substitutions_frame(match_id, raw_events),
+    }
     match_players = players[players.player_id.isin(lineups.player_id)]
 
     with engine.begin() as conn:
@@ -269,6 +290,8 @@ def load_match(
         conn.execute(text("DELETE FROM core.events WHERE match_id = :m"), {"m": match_id})  # sempre filtrado
         insert(conn, "lineups", lineups)
         insert(conn, "events", events)
+        for table, frame in details.items():  # depois de events: cada linha aponta para um evento
+            insert(conn, table, frame)
         _mark_loaded(conn, lineups_rel, now())
         _mark_loaded(conn, events_rel, now())
 
@@ -278,6 +301,11 @@ def load_match(
         starters=int(lineups.is_starter.sum()),
         played=int(lineups.played.sum()),
         events=len(events),
+        shots=len(details["shots"]),
+        passes=len(details["passes"]),
+        carries=len(details["carries"]),
+        cards=len(details["cards"]),
+        substitutions=len(details["substitutions"]),
         player_ids=tuple(int(p) for p in lineups.player_id),
     )
 
@@ -290,10 +318,10 @@ def load_matches(
     *,
     now: Callable[[], datetime] = _utc_now,
 ) -> MatchesResult:
-    """P3 e P4: players, lineups e events das partidas de `selection.load_match_ids`, uma transação por partida.
+    """P3 a P5: players, lineups, events e as tabelas especializadas das partidas de `selection.load_match_ids`.
 
-    Entrada: lineups/*.json e events/*.json (hash conferido) e core.matches (P2).
-    Saída: core.players, core.lineups e core.events.
+    Uma transação por partida. Entrada: lineups/*.json e events/*.json (hash conferido) e core.matches (P2).
+    Saída: core.players, core.lineups, core.events, core.shots, core.passes, core.carries, core.cards, core.substitutions.
     Se uma partida falhar, as anteriores já estão gravadas (cada uma é atômica) e a falha é reportada.
     """
     entries = read_manifest(manifest_path)

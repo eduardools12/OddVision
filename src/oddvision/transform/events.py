@@ -19,6 +19,7 @@ from oddvision.transform.common import (
     MISSING,
     TransformError,
     extract_extra,
+    float_value,
     get_path,
     int_field,
     object_frame,
@@ -64,19 +65,13 @@ def _interval(value: str) -> timedelta:
     return timedelta(hours=int(hours), minutes=int(minutes), seconds=int(seconds), microseconds=microseconds)
 
 
-def _number(value, field: str, context: str) -> float:
-    if isinstance(value, bool) or not isinstance(value, (int, float)):
-        raise TransformError(f"{context}: {field} deve ser numérico, recebido {value!r}")
-    return float(value)
-
-
 def _location(event, context: str) -> tuple[float | None, float | None]:
     value = get_path(event, "location")
     if value is MISSING:
         return None, None
     if not isinstance(value, list) or len(value) != 2:
         raise TransformError(f"{context}: location deve ser [x, y], recebido {value!r}")
-    x, y = (_number(v, "location", context) for v in value)
+    x, y = (float_value(v, "location", context) for v in value)
     if not (0 <= x <= PITCH_X and 0 <= y <= PITCH_Y):
         raise TransformError(f"{context}: location fora do campo (0-{PITCH_X:g}, 0-{PITCH_Y:g}): {value!r}")
     return x, y
@@ -136,7 +131,7 @@ def events_frame(match_id: int, events: Sequence[dict]) -> pd.DataFrame:
             "play_pattern": text_field(event, ("play_pattern", "name"), context),
             "x": x,
             "y": y,
-            "duration": None if duration is MISSING else _number(duration, "duration", context),
+            "duration": None if duration is MISSING else float_value(duration, "duration", context),
             "under_pressure": under_pressure is True,  # a fonte só traz a chave quando é verdadeira
             "extra": extract_extra(event, EVENT_MAPPED_PATHS),
         })

@@ -217,7 +217,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 | `body_part` | `TEXT` | SIM | `shot.body_part.name` | 🟦 | Pé direito/esquerdo, cabeça… |
 | `technique` | `TEXT` | SIM | `shot.technique.name` | 🟦 | Técnica (voleio, normal…) |
 | `key_pass_id` | `UUID` | SIM | `shot.key_pass_id` | 🟦 | Passe que originou a finalização |
-| `extra` | `JSONB` | NÃO (`'{}'`) | demais chaves de `shot` | 🟦 | `freeze_frame`, `first_time`, `one_on_one`, `aerial_won`, `deflected`, `open_goal` etc. |
+| `extra` | `JSONB` | NÃO (`'{}'`) | demais chaves de `shot` | 🟦 | O objeto `shot` menos as colunas acima. Ficam os ids de domínio (`outcome.id`, `type.id`, `body_part.id`, `technique.id`), `freeze_frame`, `first_time`, `one_on_one`, `aerial_won`, `deflected`, `open_goal`, `redirect`, `follows_dribble`, `saved_to_post`, `saved_off_target` |
 
 **Chaves e restrições:**
 - **PK:** `event_id`
@@ -249,7 +249,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 | `is_through_ball` | `BOOLEAN` | NÃO (`false`) | `pass.through_ball` ✅ | 🟩 | Passe em profundidade. Equivale a `pass.technique.name = 'Through Ball'` (os mesmos 254 passes na Copa) |
 | `is_shot_assist` | `BOOLEAN` | NÃO (`false`) | `pass.shot_assist` | 🟩 | Passe que gerou finalização sem gol |
 | `is_goal_assist` | `BOOLEAN` | NÃO (`false`) | `pass.goal_assist` | 🟩 | Assistência para gol |
-| `extra` | `JSONB` | NÃO (`'{}'`) | demais chaves de `pass` | 🟦 | `technique`, `assisted_shot_id`, `aerial_won`, `deflected`, `inswinging`, `outswinging`, `cut_back`, `miscommunication`, `no_touch`, `straight` etc. |
+| `extra` | `JSONB` | NÃO (`'{}'`) | demais chaves de `pass` | 🟦 | O objeto `pass` menos as colunas acima e **menos `recipient.name`** (já está em `core.players`). Ficam os ids de domínio (`height.id`, `type.id`, `body_part.id`, `outcome.id`), o objeto `technique` inteiro (`{id, name}`), `assisted_shot_id`, `aerial_won`, `deflected`, `inswinging`, `outswinging`, `cut_back`, `miscommunication`, `no_touch`, `straight` |
 
 **Chaves e restrições:**
 - **PK:** `event_id`
@@ -274,7 +274,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 - **PK:** `event_id`
 - **FK:** `event_id` → `events` (`ON DELETE CASCADE`)
 - **CHECK:** coordenadas no intervalo do campo
-- Sem `extra`: o objeto `carry` não tem outras chaves na Copa 2022.
+- Sem `extra`: o objeto `carry` não tem outras chaves na Copa 2022 (confirmado nas 64 partidas). **Se a fonte trouxer uma chave nova, a carga falha** em vez de perdê-la ([D27](decisions.md)).
 
 ---
 
@@ -291,7 +291,8 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 - **PK:** `event_id`
 - **FK:** `event_id` → `events` (`ON DELETE CASCADE`)
 - **Domínio:** check C04.
-- **Conciliação:** aviso C09 contra `lineups.extra->'cards'`.
+- **Conciliação:** aviso C09 contra `lineups.extra->'cards'`. Já conferida no Passo 8: nas 3 sentinelas os 14 cartões dos eventos são os mesmos 14 das escalações (partida, jogador e tipo).
+- `card.id` não é guardado (é derivável do nome); se o objeto `card` trouxer outra chave, a carga falha ([D27](decisions.md)).
 - Jogador, time e momento vêm de `core.events`, sem duplicação.
 
 ---
@@ -309,6 +310,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 
 - **PK:** `event_id`
 - **FK:** `event_id` → `events` (`ON DELETE CASCADE`); `player_on_id` → `players`
+- Sem `extra`: `outcome.id` e `replacement.name` não são guardados (deriváveis do motivo e de `core.players`). Se `substitution`, `outcome` ou `replacement` trouxerem outra chave, a carga falha ([D27](decisions.md)). Nas 64 partidas, todo substituto está nas escalações da sua partida.
 
 ---
 

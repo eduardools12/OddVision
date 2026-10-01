@@ -36,6 +36,8 @@ EXPECTED = {
     19597: (779, 8, False, True, "Left Wing"),
     6909: (779, 23, True, True, "Goalkeeper"),
     6312: (779, 1, False, False, None),
+    2995: (779, 11, True, True, "Left Wing"),
+    3090: (779, 19, True, True, "Left Center Back"),
 }
 
 
@@ -97,10 +99,10 @@ def test_load_writes_players_and_lineups_of_the_sentinel(fresh_schemas, tmp_path
 
     result = load_matches(fresh_schemas, SELECTION, raw, manifest, now=lambda: T1)
 
-    assert [(m.match_id, m.players, m.starters, m.played) for m in result.matches] == [(FINAL, 7, 3, 5)]
-    assert result.players == 7
-    assert scalar(fresh_schemas, "SELECT count(*) FROM core.lineups") == 7
-    assert scalar(fresh_schemas, "SELECT count(*) FROM core.players") == 7
+    assert [(m.match_id, m.players, m.starters, m.played) for m in result.matches] == [(FINAL, 9, 5, 7)]
+    assert result.players == 9
+    assert scalar(fresh_schemas, "SELECT count(*) FROM core.lineups") == 9
+    assert scalar(fresh_schemas, "SELECT count(*) FROM core.players") == 9
 
 
 def test_the_lineup_rows_match_the_known_facts(fresh_schemas, tmp_path):
@@ -155,7 +157,7 @@ def test_reloading_replaces_the_match_lineups_and_leaves_other_matches_alone(fre
     load_matches(fresh_schemas, SELECTION, raw, manifest)
 
     assert rows(fresh_schemas, "SELECT 1 FROM core.lineups WHERE match_id = :m AND player_id = 99999", m=FINAL) == []
-    assert scalar(fresh_schemas, "SELECT count(*) FROM core.lineups WHERE match_id = :m", m=FINAL) == 7
+    assert scalar(fresh_schemas, "SELECT count(*) FROM core.lineups WHERE match_id = :m", m=FINAL) == 9
     assert scalar(fresh_schemas, "SELECT count(*) FROM core.lineups WHERE match_id = :m", m=NO_REFEREE) == 1  # intacta
 
 
@@ -194,7 +196,7 @@ def test_only_the_players_of_the_loaded_matches_are_written(fresh_schemas, tmp_p
     load_matches(fresh_schemas, SELECTION, raw, manifest)
 
     assert scalar(fresh_schemas, "SELECT count(*) FROM core.players WHERE player_id = 888") == 0
-    assert scalar(fresh_schemas, "SELECT count(*) FROM core.players") == 7
+    assert scalar(fresh_schemas, "SELECT count(*) FROM core.players") == 9
 
 
 # --------------------------------------------------------------------------- atomicidade e integridade
@@ -271,8 +273,8 @@ def test_load_command_loads_lineups_and_warns_about_conflicting_names(fresh_sche
     for _ in range(2):
         assert main(["load"], root=tmp_path) == 0
         captured = capsys.readouterr()
-        assert "lineups: partida 3869685: 7 jogadores (3 titulares, 5 entraram em campo)" in captured.out
-        assert "players: 7" in captured.out
+        assert "lineups: partida 3869685: 9 jogadores (5 titulares, 7 entraram em campo)" in captured.out
+        assert "players: 9" in captured.out
         assert "aviso" in captured.err and str(MESSI) in captured.err and "Messi B" in captured.err
         assert db_config.password not in captured.out + captured.err
-    assert scalar(fresh_schemas, "SELECT count(*) FROM core.lineups") == 7
+    assert scalar(fresh_schemas, "SELECT count(*) FROM core.lineups") == 9
