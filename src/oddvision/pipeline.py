@@ -1,7 +1,7 @@
 """CLI do pipeline: `python -m oddvision.pipeline <comando>`.
 
-Comandos disponíveis: `ingest`, `init-db` e `load` (por enquanto P2 e P3: competições, times, partidas e escalações).
-Os demais (check, all) e a carga de eventos entram nos Passos 7 a 9.
+Comandos disponíveis: `ingest`, `init-db` e `load` (por enquanto P2 a P4: competições, times, partidas,
+escalações e eventos). As tabelas de eventos especializados e os comandos check e all entram nos Passos 8 e 9.
 """
 
 from __future__ import annotations
@@ -115,6 +115,7 @@ def _cmd_load(root: Path) -> int:
             f"lineups: partida {match.match_id}: {match.players} jogadores "
             f"({match.starters} titulares, {match.played} entraram em campo)"
         )
+        print(f"events: partida {match.match_id}: {match.events} eventos")
     print(f"players: {lineups.players}")
     for conflict in lineups.conflicts:  # não é erro: a regra do valor mais frequente já decidiu
         seen = ", ".join(f"{value!r} em {n}" for value, n in sorted(conflict.counts.items(), key=lambda kv: -kv[1]))
@@ -136,7 +137,7 @@ def main(
     commands = parser.add_subparsers(dest="command", required=True)
     commands.add_parser("ingest", help="baixa os JSONs brutos do StatsBomb para data/raw/ e gera o manifest")
     commands.add_parser("init-db", help="cria os schemas core e analytics no banco principal (repetível; nunca apaga dados)")
-    commands.add_parser("load", help="carrega competições, times, partidas e escalações no core (repetível)")
+    commands.add_parser("load", help="carrega competições, times, partidas, escalações e eventos no core (repetível)")
 
     args = parser.parse_args(argv)
     if args.command == "ingest":

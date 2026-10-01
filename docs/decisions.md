@@ -30,6 +30,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D22 | Acesso ao banco, DDL repetível e isolamento dos testes de integração | Aceita |
 | D23 | Carga no core: transformações puras, `upsert` e transação única | Aceita |
 | D24 | Escalações: ordem cronológica das posições e atributos dos jogadores | Aceita |
+| D25 | Eventos: o que sai do `extra`, tempo exato e carga na transação da partida | Aceita |
 
 ---
 
@@ -342,3 +343,23 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 - **Consequências:**
   - A decisão dos nomes lê os 64 arquivos de escalação (cada um com o hash conferido) a cada carga. Um arquivo adulterado, mesmo de uma partida que não seria carregada, aborta tudo antes de gravar.
   - `core.players` só tem os jogadores das partidas carregadas (153 com as 3 sentinelas), mas o nome de cada um já é o definitivo.
+
+## D25 — Eventos: o que sai do `extra`, tempo exato e carga na transação da partida
+
+- **Contexto:** o Passo 7 carrega `core.events`, a tabela de maior volume (234.637 linhas na Copa inteira). A regra do `extra` (D07) precisa de uma lista exata do que sai, e algumas colunas exigem cuidado com tipos.
+- **Decisão:**
+  - **O que sai do `extra` dos eventos:** (1) o que virou coluna; (2) os **nomes** `team.name`, `player.name` e `possession_team.name`, porque as chaves estrangeiras já os representam em `core.teams` e `core.players` e eles se repetiriam em cada evento; (3) os objetos `shot`, `pass`, `carry` e `substitution`, que vão para as tabelas próprias no Passo 8; (4) `foul_committed.card` e `bad_behaviour.card`, com a poda do objeto pai quando só tinha o cartão. **Ficam** os ids de domínio (`type.id`, `position.id`, `play_pattern.id`), `related_events`, `tactics`, as flags e os objetos dos tipos sem tabela. Isso refina a lista do dicionário, que citava só `type.id`.
+  - **Tempo exato:** `timestamp` ("00:02:16.985") vira `INTERVAL` por aritmética inteira sobre a fração, nunca por `float`, para `.001` continuar sendo 1 milissegundo.
+  - **Ausência com significado:** `duration` ausente vira `NULL` (só em `Ball Receipt*`), e `0.0` é mantido como valor; `under_pressure` ausente vira `false`; `location` ausente vira `x` e `y` nulos juntos.
+  - **Faixas conferidas na transformação, com o id do evento** (`period` 1 a 5, `second` 0 a 59, `x` 0 a 120, `y` 0 a 80). As `CHECK` do banco continuam como segunda barreira, mas elas não dizem *qual* evento falhou, o que faria falta em 234 mil linhas.
+  - **Eventos entram na mesma transação das escalações** (`load_match`): `DELETE` filtrado por `match_id` em `lineups` e em `events`, depois os `INSERT`s. Se qualquer passo falhar, a partida inteira volta atrás: um teste faz o `INSERT` dos eventos falhar (jogador inexistente) e confere que as escalações e os `players` também foram desfeitos.
+  - **Os times dos eventos (`team` e `possession_team`) devem ser os da partida**, senão a carga é recusada.
+  - **Um arquivo de eventos vazio é erro:** uma partida real sempre tem eventos.
+- **Alternativas:**
+  - *Manter os nomes no `extra`:* cerca de 60 bytes a mais por evento, sem informação nova.
+  - *Descartar também os ids de domínio:* ganharia pouco espaço e perderia informação de forma irreversível.
+  - *`INTERVAL` via `float`:* arredondaria os milissegundos em alguns casos.
+- **Medição (não é meta, é ponto de partida):** 11.444 eventos (3 partidas) são carregados em cerca de 3,6 s com o `executemany` do psycopg 3, já incluindo as outras etapas do `load`. A regra do `extra` custa 0,036 ms por evento. Projeção linear para os 234.637 eventos: cerca de 1 minuto. **Só otimizar (por exemplo com `COPY`) se a medição do Passo 13 mostrar necessidade.** O `core.events` ocupa cerca de 10 MB para 11 mil linhas, com índices.
+- **Consequências:**
+  - Entre os Passos 7 e 8, os objetos `shot`, `pass`, `carry` e `substitution` ainda não estão em nenhuma tabela do banco (continuam nos JSONs brutos). É um estado intermediário esperado.
+  - O `card.id` e o `substitution.replacement.name` não terão onde ficar no Passo 8, porque `cards` e `substitutions` não têm `extra`. São ids e nomes de domínio deriváveis dos outros campos.

@@ -54,7 +54,7 @@ def stage(tmp_path, lineups=None):
     by_match.update(lineups or {})
     files = {"competitions.json": dump(fixture("competitions_sample.json")), "matches/43/106.json": dump(matches)}
     for match_id, teams in by_match.items():
-        files[f"events/{match_id}.json"] = b"[]"
+        files[f"events/{match_id}.json"] = dump(fixture("events_sample.json"))
         files[f"lineups/{match_id}.json"] = dump(teams)
     served = {SELECTION.base_url + rel: data for rel, data in files.items()}
     raw, manifest = tmp_path / "raw", tmp_path / "manifests" / "manifest.csv"

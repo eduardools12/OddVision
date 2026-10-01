@@ -1,0 +1,1137 @@
+[
+  {
+    "id": "0584ee21-e3dd-4d9f-95a0-5b5e84be25c3",
+    "index": 1,
+    "period": 1,
+    "timestamp": "00:00:00.000",
+    "minute": 0,
+    "second": 0,
+    "type": {
+      "id": 35,
+      "name": "Starting XI"
+    },
+    "possession": 1,
+    "possession_team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "play_pattern": {
+      "id": 1,
+      "name": "Regular Play"
+    },
+    "team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "duration": 0.0,
+    "tactics": {
+      "formation": 433,
+      "lineup": [
+        {
+          "player": {
+            "id": 6909,
+            "name": "Damián Emiliano Martínez"
+          },
+          "position": {
+            "id": 1,
+            "name": "Goalkeeper"
+          },
+          "jersey_number": 23
+        },
+        {
+          "player": {
+            "id": 29201,
+            "name": "Nahuel Molina Lucero"
+          },
+          "position": {
+            "id": 2,
+            "name": "Right Back"
+          },
+          "jersey_number": 26
+        },
+        {
+          "player": {
+            "id": 20572,
+            "name": "Cristian Gabriel Romero"
+          },
+          "position": {
+            "id": 3,
+            "name": "Right Center Back"
+          },
+          "jersey_number": 13
+        },
+        {
+          "player": {
+            "id": 3090,
+            "name": "Nicolás Hernán Otamendi"
+          },
+          "position": {
+            "id": 5,
+            "name": "Left Center Back"
+          },
+          "jersey_number": 19
+        },
+        {
+          "player": {
+            "id": 5507,
+            "name": "Nicolás Alejandro Tagliafico"
+          },
+          "position": {
+            "id": 6,
+            "name": "Left Back"
+          },
+          "jersey_number": 3
+        },
+        {
+          "player": {
+            "id": 38718,
+            "name": "Enzo Fernandez"
+          },
+          "position": {
+            "id": 10,
+            "name": "Center Defensive Midfield"
+          },
+          "jersey_number": 24
+        },
+        {
+          "player": {
+            "id": 7797,
+            "name": "Rodrigo Javier De Paul"
+          },
+          "position": {
+            "id": 13,
+            "name": "Right Center Midfield"
+          },
+          "jersey_number": 7
+        },
+        {
+          "player": {
+            "id": 27886,
+            "name": "Alexis Mac Allister"
+          },
+          "position": {
+            "id": 15,
+            "name": "Left Center Midfield"
+          },
+          "jersey_number": 20
+        },
+        {
+          "player": {
+            "id": 5503,
+            "name": "Lionel Andrés Messi Cuccittini"
+          },
+          "position": {
+            "id": 17,
+            "name": "Right Wing"
+          },
+          "jersey_number": 10
+        },
+        {
+          "player": {
+            "id": 2995,
+            "name": "Ángel Fabián Di María Hernández"
+          },
+          "position": {
+            "id": 21,
+            "name": "Left Wing"
+          },
+          "jersey_number": 11
+        },
+        {
+          "player": {
+            "id": 29560,
+            "name": "Julián Álvarez"
+          },
+          "position": {
+            "id": 23,
+            "name": "Center Forward"
+          },
+          "jersey_number": 9
+        }
+      ]
+    }
+  },
+  {
+    "id": "954f6855-de22-46a2-8d09-6fe94eec2b9b",
+    "index": 3,
+    "period": 1,
+    "timestamp": "00:00:00.000",
+    "minute": 0,
+    "second": 0,
+    "type": {
+      "id": 18,
+      "name": "Half Start"
+    },
+    "possession": 1,
+    "possession_team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "play_pattern": {
+      "id": 1,
+      "name": "Regular Play"
+    },
+    "team": {
+      "id": 771,
+      "name": "France"
+    },
+    "duration": 0.0,
+    "related_events": [
+      "6404a8e8-afaf-489d-b65e-173a237ffed5"
+    ]
+  },
+  {
+    "id": "935dedc1-2acb-4f29-b202-c161f926d3ab",
+    "index": 86,
+    "period": 1,
+    "timestamp": "00:02:16.013",
+    "minute": 2,
+    "second": 16,
+    "type": {
+      "id": 43,
+      "name": "Carry"
+    },
+    "possession": 8,
+    "possession_team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "play_pattern": {
+      "id": 4,
+      "name": "From Throw In"
+    },
+    "team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "player": {
+      "id": 5503,
+      "name": "Lionel Andrés Messi Cuccittini"
+    },
+    "position": {
+      "id": 17,
+      "name": "Right Wing"
+    },
+    "location": [
+      77.5,
+      36.9
+    ],
+    "duration": 0.971428,
+    "under_pressure": true,
+    "related_events": [
+      "1552304a-f3c0-42bf-b7ff-d7b0173d7488",
+      "98f475c7-283c-4cb2-83f4-4c9022ec5c8a",
+      "9db8a4ba-d842-4f33-9602-90284aa4391e"
+    ],
+    "carry": {
+      "end_location": [
+        76.6,
+        35.7
+      ]
+    }
+  },
+  {
+    "id": "1552304a-f3c0-42bf-b7ff-d7b0173d7488",
+    "index": 88,
+    "period": 1,
+    "timestamp": "00:02:16.985",
+    "minute": 2,
+    "second": 16,
+    "type": {
+      "id": 30,
+      "name": "Pass"
+    },
+    "possession": 8,
+    "possession_team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "play_pattern": {
+      "id": 4,
+      "name": "From Throw In"
+    },
+    "team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "player": {
+      "id": 5503,
+      "name": "Lionel Andrés Messi Cuccittini"
+    },
+    "position": {
+      "id": 17,
+      "name": "Right Wing"
+    },
+    "location": [
+      76.6,
+      35.7
+    ],
+    "duration": 4.15978,
+    "under_pressure": true,
+    "related_events": [
+      "98f475c7-283c-4cb2-83f4-4c9022ec5c8a",
+      "fdfb0acc-4edc-4fec-960e-821aeb4cc62b"
+    ],
+    "pass": {
+      "recipient": {
+        "id": 2995,
+        "name": "Ángel Fabián Di María Hernández"
+      },
+      "length": 47.816315,
+      "angle": -0.5949631,
+      "height": {
+        "id": 3,
+        "name": "High Pass"
+      },
+      "end_location": [
+        116.2,
+        8.9
+      ],
+      "body_part": {
+        "id": 38,
+        "name": "Left Foot"
+      }
+    }
+  },
+  {
+    "id": "9d4dea62-303f-4c6e-be2f-517b743fa98a",
+    "index": 211,
+    "period": 1,
+    "timestamp": "00:05:01.571",
+    "minute": 5,
+    "second": 1,
+    "type": {
+      "id": 42,
+      "name": "Ball Receipt*"
+    },
+    "possession": 15,
+    "possession_team": {
+      "id": 771,
+      "name": "France"
+    },
+    "play_pattern": {
+      "id": 8,
+      "name": "From Keeper"
+    },
+    "team": {
+      "id": 771,
+      "name": "France"
+    },
+    "player": {
+      "id": 3009,
+      "name": "Kylian Mbappé Lottin"
+    },
+    "position": {
+      "id": 21,
+      "name": "Left Wing"
+    },
+    "location": [
+      69.3,
+      5.3
+    ],
+    "related_events": [
+      "7e2056a1-5614-4a60-b04e-0fa5c915c249"
+    ]
+  },
+  {
+    "id": "b74c24d6-a0f1-42c4-b216-0b7a54e7834a",
+    "index": 250,
+    "period": 1,
+    "timestamp": "00:05:44.783",
+    "minute": 5,
+    "second": 44,
+    "type": {
+      "id": 22,
+      "name": "Foul Committed"
+    },
+    "possession": 15,
+    "possession_team": {
+      "id": 771,
+      "name": "France"
+    },
+    "play_pattern": {
+      "id": 8,
+      "name": "From Keeper"
+    },
+    "team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "player": {
+      "id": 5503,
+      "name": "Lionel Andrés Messi Cuccittini"
+    },
+    "position": {
+      "id": 17,
+      "name": "Right Wing"
+    },
+    "location": [
+      68.3,
+      46.1
+    ],
+    "duration": 0.0,
+    "related_events": [
+      "525eef87-55ff-4a10-96b7-487d62633f38"
+    ]
+  },
+  {
+    "id": "7e97029d-8dc3-4617-b637-250e8d5b279a",
+    "index": 465,
+    "period": 1,
+    "timestamp": "00:13:10.734",
+    "minute": 13,
+    "second": 10,
+    "type": {
+      "id": 23,
+      "name": "Goal Keeper"
+    },
+    "possession": 23,
+    "possession_team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "play_pattern": {
+      "id": 8,
+      "name": "From Keeper"
+    },
+    "team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "player": {
+      "id": 6909,
+      "name": "Damián Emiliano Martínez"
+    },
+    "position": {
+      "id": 1,
+      "name": "Goalkeeper"
+    },
+    "location": [
+      3.5,
+      51.1
+    ],
+    "duration": 0.0,
+    "related_events": [
+      "6fc09ede-6370-4999-ae10-154c2843260f"
+    ],
+    "goalkeeper": {
+      "type": {
+        "id": 27,
+        "name": "Keeper Sweeper"
+      },
+      "outcome": {
+        "id": 47,
+        "name": "Claim"
+      }
+    }
+  },
+  {
+    "id": "a771391d-0f50-474d-a31c-412f38c6e57a",
+    "index": 466,
+    "period": 1,
+    "timestamp": "00:13:24.189",
+    "minute": 13,
+    "second": 24,
+    "type": {
+      "id": 30,
+      "name": "Pass"
+    },
+    "possession": 23,
+    "possession_team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "play_pattern": {
+      "id": 8,
+      "name": "From Keeper"
+    },
+    "off_camera": true,
+    "team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "player": {
+      "id": 6909,
+      "name": "Damián Emiliano Martínez"
+    },
+    "position": {
+      "id": 1,
+      "name": "Goalkeeper"
+    },
+    "location": [
+      4.8,
+      42.3
+    ],
+    "duration": 2.466001,
+    "related_events": [
+      "830a2123-457b-4a2c-9470-116d3dbbbd83"
+    ],
+    "pass": {
+      "recipient": {
+        "id": 3090,
+        "name": "Nicolás Hernán Otamendi"
+      },
+      "length": 24.678938,
+      "angle": -0.79399395,
+      "height": {
+        "id": 1,
+        "name": "Ground Pass"
+      },
+      "end_location": [
+        22.1,
+        24.7
+      ],
+      "body_part": {
+        "id": 69,
+        "name": "Keeper Arm"
+      }
+    }
+  },
+  {
+    "id": "6d527ebc-a948-4cd8-ac82-daced35bb715",
+    "index": 771,
+    "period": 1,
+    "timestamp": "00:22:24.114",
+    "minute": 22,
+    "second": 24,
+    "type": {
+      "id": 16,
+      "name": "Shot"
+    },
+    "possession": 32,
+    "possession_team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "play_pattern": {
+      "id": 5,
+      "name": "Other"
+    },
+    "team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "player": {
+      "id": 5503,
+      "name": "Lionel Andrés Messi Cuccittini"
+    },
+    "position": {
+      "id": 17,
+      "name": "Right Wing"
+    },
+    "location": [
+      108.0,
+      40.0
+    ],
+    "duration": 0.625635,
+    "related_events": [
+      "c9b8e568-dcdc-4302-9683-0e9e9a55a42a"
+    ],
+    "shot": {
+      "statsbomb_xg": 0.7835,
+      "end_location": [
+        120.0,
+        41.8,
+        0.2
+      ],
+      "outcome": {
+        "id": 97,
+        "name": "Goal"
+      },
+      "technique": {
+        "id": 93,
+        "name": "Normal"
+      },
+      "body_part": {
+        "id": 38,
+        "name": "Left Foot"
+      },
+      "type": {
+        "id": 88,
+        "name": "Penalty"
+      }
+    }
+  },
+  {
+    "id": "9beb0fa7-66bb-420a-b1a1-c27029985bc5",
+    "index": 796,
+    "period": 1,
+    "timestamp": "00:24:12.237",
+    "minute": 24,
+    "second": 12,
+    "type": {
+      "id": 30,
+      "name": "Pass"
+    },
+    "possession": 34,
+    "possession_team": {
+      "id": 771,
+      "name": "France"
+    },
+    "play_pattern": {
+      "id": 4,
+      "name": "From Throw In"
+    },
+    "team": {
+      "id": 771,
+      "name": "France"
+    },
+    "player": {
+      "id": 3009,
+      "name": "Kylian Mbappé Lottin"
+    },
+    "position": {
+      "id": 21,
+      "name": "Left Wing"
+    },
+    "location": [
+      105.9,
+      5.5
+    ],
+    "duration": 1.747653,
+    "related_events": [
+      "f2bed2ec-d7a0-42e9-bd5f-71707c1543e6"
+    ],
+    "pass": {
+      "length": 22.93687,
+      "angle": 1.627504,
+      "height": {
+        "id": 1,
+        "name": "Ground Pass"
+      },
+      "end_location": [
+        104.6,
+        28.4
+      ],
+      "outcome": {
+        "id": 9,
+        "name": "Incomplete"
+      },
+      "body_part": {
+        "id": 38,
+        "name": "Left Foot"
+      }
+    }
+  },
+  {
+    "id": "f7101264-053d-4bf8-810b-2562cc05fe6e",
+    "index": 865,
+    "period": 1,
+    "timestamp": "00:28:11.248",
+    "minute": 28,
+    "second": 11,
+    "type": {
+      "id": 27,
+      "name": "Player Off"
+    },
+    "possession": 40,
+    "possession_team": {
+      "id": 771,
+      "name": "France"
+    },
+    "play_pattern": {
+      "id": 3,
+      "name": "From Free Kick"
+    },
+    "team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "player": {
+      "id": 5503,
+      "name": "Lionel Andrés Messi Cuccittini"
+    },
+    "position": {
+      "id": 17,
+      "name": "Right Wing"
+    },
+    "duration": 0.0,
+    "related_events": [
+      "a0f93be7-0a20-47f3-aa78-84e3b5531db2"
+    ]
+  },
+  {
+    "id": "a0f93be7-0a20-47f3-aa78-84e3b5531db2",
+    "index": 867,
+    "period": 1,
+    "timestamp": "00:28:19.983",
+    "minute": 28,
+    "second": 19,
+    "type": {
+      "id": 26,
+      "name": "Player On"
+    },
+    "possession": 41,
+    "possession_team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "play_pattern": {
+      "id": 3,
+      "name": "From Free Kick"
+    },
+    "team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "player": {
+      "id": 5503,
+      "name": "Lionel Andrés Messi Cuccittini"
+    },
+    "position": {
+      "id": 17,
+      "name": "Right Wing"
+    },
+    "duration": 0.0,
+    "related_events": [
+      "f7101264-053d-4bf8-810b-2562cc05fe6e"
+    ]
+  },
+  {
+    "id": "d230a1b3-165e-4d72-85f9-728154e10fb3",
+    "index": 995,
+    "period": 1,
+    "timestamp": "00:32:16.359",
+    "minute": 32,
+    "second": 16,
+    "type": {
+      "id": 17,
+      "name": "Pressure"
+    },
+    "possession": 48,
+    "possession_team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "play_pattern": {
+      "id": 1,
+      "name": "Regular Play"
+    },
+    "team": {
+      "id": 771,
+      "name": "France"
+    },
+    "player": {
+      "id": 3009,
+      "name": "Kylian Mbappé Lottin"
+    },
+    "position": {
+      "id": 21,
+      "name": "Left Wing"
+    },
+    "location": [
+      34.9,
+      33.1
+    ],
+    "duration": 0.454979,
+    "related_events": [
+      "c137d51f-dae3-4ffb-b3db-f31306427368"
+    ]
+  },
+  {
+    "id": "776e2bb6-b9d4-4455-8965-d7c86afa4ad4",
+    "index": 1385,
+    "period": 1,
+    "timestamp": "00:41:20.088",
+    "minute": 41,
+    "second": 20,
+    "type": {
+      "id": 36,
+      "name": "Tactical Shift"
+    },
+    "possession": 61,
+    "possession_team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "play_pattern": {
+      "id": 3,
+      "name": "From Free Kick"
+    },
+    "team": {
+      "id": 771,
+      "name": "France"
+    },
+    "duration": 0.0,
+    "tactics": {
+      "formation": 4231,
+      "lineup": [
+        {
+          "player": {
+            "id": 3099,
+            "name": "Hugo Lloris"
+          },
+          "position": {
+            "id": 1,
+            "name": "Goalkeeper"
+          },
+          "jersey_number": 1
+        },
+        {
+          "player": {
+            "id": 4445,
+            "name": "Jules Koundé"
+          },
+          "position": {
+            "id": 2,
+            "name": "Right Back"
+          },
+          "jersey_number": 5
+        },
+        {
+          "player": {
+            "id": 5485,
+            "name": "Raphaël Varane"
+          },
+          "position": {
+            "id": 3,
+            "name": "Right Center Back"
+          },
+          "jersey_number": 4
+        },
+        {
+          "player": {
+            "id": 8519,
+            "name": "Dayotchanculle Upamecano"
+          },
+          "position": {
+            "id": 5,
+            "name": "Left Center Back"
+          },
+          "jersey_number": 18
+        },
+        {
+          "player": {
+            "id": 6704,
+            "name": "Theo Bernard François Hernández"
+          },
+          "position": {
+            "id": 6,
+            "name": "Left Back"
+          },
+          "jersey_number": 22
+        },
+        {
+          "player": {
+            "id": 10481,
+            "name": "Aurélien Djani Tchouaméni"
+          },
+          "position": {
+            "id": 9,
+            "name": "Right Defensive Midfield"
+          },
+          "jersey_number": 8
+        },
+        {
+          "player": {
+            "id": 3026,
+            "name": "Adrien Rabiot"
+          },
+          "position": {
+            "id": 11,
+            "name": "Left Defensive Midfield"
+          },
+          "jersey_number": 14
+        },
+        {
+          "player": {
+            "id": 22097,
+            "name": "Randal Kolo Muani"
+          },
+          "position": {
+            "id": 17,
+            "name": "Right Wing"
+          },
+          "jersey_number": 12
+        },
+        {
+          "player": {
+            "id": 5487,
+            "name": "Antoine Griezmann"
+          },
+          "position": {
+            "id": 19,
+            "name": "Center Attacking Midfield"
+          },
+          "jersey_number": 7
+        },
+        {
+          "player": {
+            "id": 2972,
+            "name": "Marcus Thuram"
+          },
+          "position": {
+            "id": 21,
+            "name": "Left Wing"
+          },
+          "jersey_number": 26
+        },
+        {
+          "player": {
+            "id": 3009,
+            "name": "Kylian Mbappé Lottin"
+          },
+          "position": {
+            "id": 23,
+            "name": "Center Forward"
+          },
+          "jersey_number": 10
+        }
+      ]
+    }
+  },
+  {
+    "id": "bd407494-64bb-4d05-bffd-ba5668e8cad3",
+    "index": 1521,
+    "period": 1,
+    "timestamp": "00:44:48.503",
+    "minute": 44,
+    "second": 48,
+    "type": {
+      "id": 4,
+      "name": "Duel"
+    },
+    "possession": 66,
+    "possession_team": {
+      "id": 771,
+      "name": "France"
+    },
+    "play_pattern": {
+      "id": 3,
+      "name": "From Free Kick"
+    },
+    "team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "player": {
+      "id": 5503,
+      "name": "Lionel Andrés Messi Cuccittini"
+    },
+    "position": {
+      "id": 17,
+      "name": "Right Wing"
+    },
+    "location": [
+      29.5,
+      44.9
+    ],
+    "duration": 0.0,
+    "under_pressure": true,
+    "related_events": [
+      "e27c6cb1-1c60-4d50-bf70-77c85416481f"
+    ],
+    "duel": {
+      "type": {
+        "id": 11,
+        "name": "Tackle"
+      },
+      "outcome": {
+        "id": 13,
+        "name": "Lost In Play"
+      }
+    }
+  },
+  {
+    "id": "8f75db1a-1ee2-4ff8-b211-1c46d9a76a69",
+    "index": 3160,
+    "period": 2,
+    "timestamp": "00:41:24.413",
+    "minute": 86,
+    "second": 24,
+    "type": {
+      "id": 22,
+      "name": "Foul Committed"
+    },
+    "possession": 173,
+    "possession_team": {
+      "id": 771,
+      "name": "France"
+    },
+    "play_pattern": {
+      "id": 3,
+      "name": "From Free Kick"
+    },
+    "team": {
+      "id": 771,
+      "name": "France"
+    },
+    "player": {
+      "id": 2972,
+      "name": "Marcus Thuram"
+    },
+    "position": {
+      "id": 16,
+      "name": "Left Midfield"
+    },
+    "location": [
+      106.6,
+      27.3
+    ],
+    "duration": 0.0,
+    "foul_committed": {
+      "offensive": true,
+      "type": {
+        "id": 22,
+        "name": "Dive"
+      },
+      "card": {
+        "id": 7,
+        "name": "Yellow Card"
+      }
+    }
+  },
+  {
+    "id": "4b295434-7285-4337-95b4-26395b799643",
+    "index": 3396,
+    "period": 2,
+    "timestamp": "00:52:33.580",
+    "minute": 97,
+    "second": 33,
+    "type": {
+      "id": 22,
+      "name": "Foul Committed"
+    },
+    "possession": 193,
+    "possession_team": {
+      "id": 771,
+      "name": "France"
+    },
+    "play_pattern": {
+      "id": 1,
+      "name": "Regular Play"
+    },
+    "team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "player": {
+      "id": 19597,
+      "name": "Marcos Javier Acuña"
+    },
+    "position": {
+      "id": 21,
+      "name": "Left Wing"
+    },
+    "location": [
+      93.7,
+      29.7
+    ],
+    "duration": 0.0,
+    "counterpress": true,
+    "related_events": [
+      "ab0496ee-5d60-4781-84ac-ede051716754"
+    ],
+    "foul_committed": {
+      "card": {
+        "id": 7,
+        "name": "Yellow Card"
+      }
+    }
+  },
+  {
+    "id": "2a15edb5-2a54-41d5-afe9-87e447389b18",
+    "index": 4391,
+    "period": 5,
+    "timestamp": "00:01:02.191",
+    "minute": 121,
+    "second": 2,
+    "type": {
+      "id": 16,
+      "name": "Shot"
+    },
+    "possession": 249,
+    "possession_team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "play_pattern": {
+      "id": 5,
+      "name": "Other"
+    },
+    "team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "player": {
+      "id": 5503,
+      "name": "Lionel Andrés Messi Cuccittini"
+    },
+    "position": {
+      "id": 22,
+      "name": "Right Center Forward"
+    },
+    "location": [
+      108.1,
+      40.1
+    ],
+    "duration": 0.843986,
+    "related_events": [
+      "571f2328-3a11-4aa6-b344-0f281668a2e7"
+    ],
+    "shot": {
+      "statsbomb_xg": 0.7835,
+      "end_location": [
+        120.0,
+        38.3,
+        0.2
+      ],
+      "technique": {
+        "id": 93,
+        "name": "Normal"
+      },
+      "body_part": {
+        "id": 38,
+        "name": "Left Foot"
+      },
+      "type": {
+        "id": 88,
+        "name": "Penalty"
+      },
+      "outcome": {
+        "id": 97,
+        "name": "Goal"
+      }
+    }
+  },
+  {
+    "id": "ad6e8237-8cb9-44f4-b9fb-356f066f3b2b",
+    "index": 4401,
+    "period": 5,
+    "timestamp": "00:04:57.514",
+    "minute": 124,
+    "second": 57,
+    "type": {
+      "id": 24,
+      "name": "Bad Behaviour"
+    },
+    "possession": 253,
+    "possession_team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "play_pattern": {
+      "id": 5,
+      "name": "Other"
+    },
+    "team": {
+      "id": 779,
+      "name": "Argentina"
+    },
+    "player": {
+      "id": 6909,
+      "name": "Damián Emiliano Martínez"
+    },
+    "position": {
+      "id": 1,
+      "name": "Goalkeeper"
+    },
+    "duration": 0.0,
+    "bad_behaviour": {
+      "card": {
+        "id": 7,
+        "name": "Yellow Card"
+      }
+    }
+  }
+]

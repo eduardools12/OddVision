@@ -41,7 +41,7 @@ def source_files(matches=None) -> dict[str, bytes]:
     matches = fixture("matches_sample.json") if matches is None else matches
     files = {"competitions.json": dump(fixture("competitions_sample.json")), "matches/43/106.json": dump(matches)}
     for match in matches:
-        files[f"events/{match['match_id']}.json"] = b"[]"
+        files[f"events/{match['match_id']}.json"] = dump(fixture("events_sample.json"))
         files[f"lineups/{match['match_id']}.json"] = dump(fixture("lineups_sample.json"))
     return {SELECTION.base_url + rel: data for rel, data in files.items()}
 

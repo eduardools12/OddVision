@@ -184,7 +184,7 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 | `y` | `DOUBLE PRECISION` | SIM | `location[1]` | 🟦 | Coordenada y (0–80), com origem no canto superior |
 | `duration` | `DOUBLE PRECISION` | SIM | `duration` | 🟦 | Duração do evento em segundos. Ausente em todos os `Ball Receipt*` e em 1 `Pass` (achado A4) |
 | `under_pressure` | `BOOLEAN` | NÃO (`false`) | `under_pressure` (presente só se verdadeiro) | 🟩 | Ação sob pressão |
-| `extra` | `JSONB` | NÃO (`'{}'`) | demais chaves | 🟦 | `type.id`, `related_events`, `tactics`, `counterpress`, `off_camera`, `out` e o **objeto específico** de tipos sem tabela própria (`duel`, `pressure`, `goalkeeper`, `clearance`, `dribble`, `interception`, `ball_receipt` etc.) |
+| `extra` | `JSONB` | NÃO (`'{}'`) | demais chaves | 🟦 | Origem menos o que saiu de propósito (lista abaixo). Ficam: os **ids de domínio** `type.id`, `position.id` e `play_pattern.id`, `related_events`, `tactics`, `counterpress`, `off_camera`, `out` e o **objeto específico** de tipos sem tabela própria (`duel`, `pressure`, `goalkeeper`, `clearance`, `dribble`, `interception`, `ball_receipt`, `foul_won`, `foul_committed` sem o cartão etc.). Implementado em `transform/events.py` (`EVENT_MAPPED_PATHS`) |
 
 **Chaves e restrições:**
 - **PK:** `event_id`
@@ -195,6 +195,8 @@ Este documento descreve o modelo **planejado** do banco `oddvision` (PostgreSQL 
 **Observações:**
 - Eventos sem `location` são esperados: 55 na final (por exemplo, `Half Start`, `Substitution`).
 - Os objetos `shot`, `pass`, `carry`, `substitution` e os cartões **não** vão para `events.extra`. Eles vão para as tabelas específicas, e o que sobra deles vai para o `extra` dessas tabelas.
+- **O que sai do `extra` dos eventos, e por quê** ([D25](decisions.md)): (1) o que virou coluna (`id`, `index`, `period`, `timestamp`, `minute`, `second`, `possession`, `location`, `duration`, `under_pressure`, `type.name`, `position.name`, `play_pattern.name`, `team.id`, `player.id`, `possession_team.id`); (2) os **nomes** `team.name`, `player.name` e `possession_team.name`, que já estão em `core.teams` e `core.players` e se repetiriam em cada um dos 234 mil eventos; (3) os objetos `shot`, `pass`, `carry` e `substitution`; (4) `foul_committed.card` e `bad_behaviour.card` (o objeto pai é podado se só tinha o cartão). A grafia de nomes por arquivo continua nos JSONs brutos.
+- **Nuances da fonte:** `Foul Committed` pode vir **sem** a chave `foul_committed` (faltas simples); `bad_behaviour` só tem `card`; `duration` é `0.0` (presente) em eventos instantâneos e **ausente** em `Ball Receipt*`; `x` e `y` são sempre `float`.
 
 ---
 
