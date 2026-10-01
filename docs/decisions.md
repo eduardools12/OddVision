@@ -40,6 +40,7 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 | D32 | Passes progressivos (M5): a convenção mora em `pass_events` | Aceita |
 | D33 | Conduções progressivas (M6) e parâmetros compartilhados da convenção | Aceita |
 | D34 | Passes para a área (M7) | Aceita |
+| D35 | xG acumulado (M8): `xg_timeline` com eixo de tempo real | Aceita |
 
 ---
 
@@ -480,3 +481,14 @@ Formato leve de ADR (*Architecture Decision Record*). Cada decisão registra o c
 - **Contexto:** M7 é uma convenção **geométrica** (a área do campo do StatsBomb), diferente de M5 e M6, que são limiares de progressão.
 - **Decisão:** `pass_events.is_passe_para_area` (coluna nova no fim) marca o passe completo, de jogo corrido, período 1 a 4, que começa **fora** da área e termina **dentro** dela, com limites inclusivos (`x ≥ 102` e `18 ≤ y ≤ 62`). **M7 não herda os limiares da M5**: um passe de `x = 30` até a área é "para a área" mesmo sem ser progressivo (o teste confere os dois valores). Começar ao lado da área (`y` fora de 18 a 62) e terminar dentro é entrada; começar em `x = 102` não é. Dados de início ausentes não geram marcação (`COALESCE(..., false)`). `passes_para_area` conta a marcação, por time e por jogador.
 - **Validação:** 37 testes (fronteiras `x = 101,99/102,00/102,01`, `y = 17,99/18/62/62,01` no fim e no início; incompletos, bolas paradas, período 5; Σ jogadores = time; subconjunto dos completos de jogo corrido), a referência da final (Argentina 7, França 3) e 15 mutações (cada fronteira, início e fim, cada exclusão, um limiar herdado por engano), todas detectadas.
+
+## D35 — xG acumulado (M8): `xg_timeline` com eixo de tempo real
+
+- **Contexto:** M8 é uma soma acumulada (🟨 cálculo) cujo eixo de tempo é uma decisão de apresentação (`docs/metrics.md`). A soma e o eixo são calculados na view para que o gráfico (Passo 12) só desenhe.
+- **Decisão:** `analytics.xg_timeline` (`40_xg_timeline.sql`) tem uma linha por finalização em tempo válido (pênaltis incluídos, período 5 fora), lendo `analytics.shot_events`:
+  - `xg_acumulado` é `SUM(statsbomb_xg) OVER (PARTITION BY partida, time ORDER BY period, idx)`; a ordem nunca usa `minute`.
+  - `tempo_decorrido_s` = soma da duração real dos períodos anteriores + `ts_in_period`. A duração de um período vem do `Half End` (os dois, um por time, têm o mesmo horário, e a view usa o máximo, então não soma duas vezes). **Sem `Half End`, vale o último evento do período**: o eixo continua correto e sem sobreposição.
+  - `minuto_futebol = minute + 1` e `rotulo` em estilo futebol (`23'`, `45+14'`), com limites 45, 90, 105 e 120.
+  - Time sem finalizações não tem linhas e o ponto inicial (0, 0) é da apresentação, como na especificação.
+- **Mutante equivalente conhecido:** retirar só o `WHERE NOT is_shootout` não muda o resultado, porque o `JOIN` com as durações (só períodos 1 a 4) já descarta o período 5. As duas proteções são mantidas de propósito (defesa em profundidade) e o teste falha quando as duas são retiradas.
+- **Validação:** 25 testes sintéticos (soma por time, pênalti como degrau, disputa fora, ordem `(period, idx)` com minuto e `idx` invertidos, 1º tempo de 60 minutos, dois `Half End` contados uma vez, sem `Half End`, 14 rótulos nas fronteiras), a referência da final (último ponto = xG de M3: Argentina 2,7583 e França 2,2726; degraus de pênalti nos minutos 22, 79 e 117, rótulos 23', 80' e 118'; cada degrau de 0,7835), as invariantes em todas as partidas carregadas (último ponto = `xg` da M3; tempo crescente com `(period, idx)`) e Inglaterra x Irã (1º tempo longo sem sobreposição). 18 mutações: 16 detectadas de primeira; "ordenar só por `idx`" sobreviveu e levou ao teste de `idx` invertido entre períodos (agora detectada); a outra sobrevivente é o equivalente acima.

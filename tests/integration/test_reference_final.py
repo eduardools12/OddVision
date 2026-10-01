@@ -182,6 +182,58 @@ def test_m7_every_loaded_match_respects_the_subset_invariant(final):
     assert broken == []
 
 
+@pytest.mark.parametrize("name", list(TEAMS))
+def test_m8_the_cumulative_xg_of_the_final_ends_at_the_team_xg_with_the_penalty_steps(final, name):
+    expected = TEAMS[name]
+    series = final.execute(text(
+        "SELECT xg_acumulado, is_penalty, minute, rotulo FROM analytics.xg_timeline WHERE match_id = :m AND team_id = :t "
+        "ORDER BY period, idx"), {"m": FINAL, "t": expected["team_id"]}).all()
+    assert series[-1].xg_acumulado == pytest.approx(expected["xg_acumulado_final"], abs=1e-4)
+    assert series[-1].xg_acumulado == pytest.approx(team_row(final, name).xg, abs=1e-9)
+    assert [r.minute for r in series if r.is_penalty] == expected["degraus_de_penalti_minute"]
+    assert [r.rotulo for r in series if r.is_penalty] == [f"{m + 1}'" for m in expected["degraus_de_penalti_minute"]]
+    assert all(b.xg_acumulado >= a.xg_acumulado for a, b in zip(series, series[1:]))
+
+
+def test_m8_the_penalty_steps_are_the_penalty_xg(final):
+    steps = final.execute(text(
+        "SELECT t.statsbomb_xg, t.xg_acumulado - lag(t.xg_acumulado, 1, 0) OVER (PARTITION BY t.team_id ORDER BY t.period, t.idx) AS step, t.is_penalty "
+        "FROM analytics.xg_timeline t WHERE t.match_id = :m"), {"m": FINAL}).all()
+    penalties = [r for r in steps if r.is_penalty]
+    assert len(penalties) == 3
+    assert all(r.step == pytest.approx(0.7835, abs=1e-4) for r in penalties)
+
+
+def test_m8_every_loaded_match_has_consistent_series_and_a_time_axis_without_overlap(final):
+    """Em todas as partidas carregadas: o último ponto é o xG do time, e o tempo cresce com (period, idx)."""
+    last_vs_xg = final.execute(text(
+        "SELECT t.match_id, t.team_id FROM (SELECT DISTINCT ON (match_id, team_id) match_id, team_id, xg_acumulado "
+        "FROM analytics.xg_timeline ORDER BY match_id, team_id, period DESC, idx DESC) t "
+        "JOIN analytics.team_match_stats s ON s.match_id = t.match_id AND s.team_id = t.team_id "
+        "WHERE abs(t.xg_acumulado - s.xg) > 1e-9")).all()
+    assert last_vs_xg == []
+    disordered = final.execute(text(
+        "SELECT match_id FROM (SELECT match_id, tempo_decorrido_s, "
+        "lag(tempo_decorrido_s) OVER (PARTITION BY match_id ORDER BY period, idx) AS previous FROM analytics.xg_timeline) x "
+        "WHERE tempo_decorrido_s < previous")).all()
+    assert disordered == []
+
+
+def test_m8_the_long_first_half_of_england_iran_does_not_overlap_the_second(final):
+    """Sentinela 3857271 (1º tempo com cerca de 14 minutos de acréscimo): o eixo real separa os dois tempos."""
+    loaded = final.execute(text("SELECT count(*) FROM core.events WHERE match_id = 3857271")).scalar_one()
+    if not loaded:
+        pytest.skip("a partida Inglaterra x Irã (3857271) não está carregada")
+    first_half_s = final.execute(text(
+        "SELECT max(extract(epoch FROM ts_in_period)) FROM core.events WHERE match_id = 3857271 AND period = 1")).scalar_one()
+    assert first_half_s > 50 * 60                       # passou muito dos 45 minutos
+    period_2 = final.execute(text(
+        "SELECT min(tempo_decorrido_s) FROM analytics.xg_timeline WHERE match_id = 3857271 AND period = 2")).scalar_one()
+    period_1 = final.execute(text(
+        "SELECT max(tempo_decorrido_s) FROM analytics.xg_timeline WHERE match_id = 3857271 AND period = 1")).scalar_one()
+    assert period_1 < period_2 and period_2 >= first_half_s
+
+
 def test_m1_every_loaded_match_reproduces_its_official_score(final):
     wrong = final.execute(text("SELECT match_id FROM analytics.match_summary WHERE has_events AND NOT score_matches_events")).all()
     assert wrong == []
